@@ -1,0 +1,24 @@
+import api from "./api";
+
+import { SkillListResponse,GetPageSkillParams,JobSkillCreateInput,JobSkillDetail } from "../types/skill";
+
+export const getPageListSkill = async (params: GetPageSkillParams):Promise<SkillListResponse> => {
+  try {
+    const response = await api.post<SkillListResponse>(`/Skill/get-list-page-skill`, {
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching skills:", error);
+    throw error;
+  }
+}
+
+export const createJobSkill = async (data: JobSkillCreateInput):Promise<JobSkillDetail> => {
+    try {
+        const response = await api.post<JobSkillDetail>(`/JobSkill/create-job-skill`, data);
+        return response.data;
+    } catch (error) {
+        console.error("Error creating job skill:", error);
+        throw error;
+    }
+}

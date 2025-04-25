@@ -1,0 +1,71 @@
+@import '../../../styles/color';
+
+.container {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	overflow-x: auto;
+
+	&::-webkit-scrollbar {
+		height: 6px;
+	}
+}
+
+.item_tab {
+	cursor: pointer;
+	user-select: none;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	padding: 10px 12px;
+	background: #f8f8f8;
+	border: 1.5px solid #edf2f6;
+	border-radius: 5px;
+	transition: 0.3s;
+	min-width: 140px;
+
+	&:hover {
+		background: #0071ce;
+		border: 1.5px solid transparent;
+
+		.icon {
+			color: $t_light;
+		}
+
+		.text {
+			color: $t_light;
+		}
+	}
+
+	&.active {
+		background: #0071ce;
+		border: 1.5px solid transparent;
+
+		.icon {
+			color: $t_light;
+		}
+
+		.text {
+			color: $t_light;
+		}
+	}
+}
+
+.box_icon {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+
+	.icon {
+		transition: 0.3s;
+		color: #303c4f;
+	}
+}
+
+.text {
+	transition: 0.3s;
+	font-weight: 600;
+	font-size: 14px;
+	color: #303c4f;
+}

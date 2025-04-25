@@ -1,0 +1,135 @@
+$borderRadius: 6px;
+$colorDone: #63fc63;
+$borderColor: #d9d9d9;
+$colorFocus: #0060af;
+$colorError: #fe2c2c;
+$colorDisabled: #dfe0e2;
+$backgroundColor: #fff;
+$paddingHeight: 12px;
+
+// Style container
+.container {
+	& + .container {
+		margin-top: 24px;
+	}
+}
+
+// Style group
+.group {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	border: 1px solid $borderColor;
+	border-radius: $borderRadius;
+	background-color: $backgroundColor;
+
+	&.iconGroup {
+		.inputElement {
+			padding-left: 0px;
+		}
+	}
+
+	// Style done
+	&.done {
+		border: 1px solid $colorDone !important;
+
+		.icon {
+			color: $colorDone !important;
+		}
+	}
+
+	// Style focus
+	&.focus {
+		border: 1px solid $colorFocus;
+		color: $colorFocus;
+
+		.icon {
+			color: $colorFocus;
+		}
+	}
+
+	// Style error
+	&.error {
+		border: 1px solid $colorError;
+
+		.icon,
+		.inputElement {
+			color: $colorError;
+		}
+
+		.inputElement::placeholder {
+			color: $colorError;
+		}
+	}
+
+	// Style disabled
+	&.disabled {
+		background-color: $colorDisabled;
+		border: 1px solid $colorDisabled;
+
+		.icon {
+			color: #5e6167;
+		}
+	}
+}
+
+// Style group input
+.inputGroup {
+	flex: 1;
+	position: relative;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+}
+
+// Style input element
+.inputElement {
+	width: 100%;
+	padding: 12px 0;
+	padding-right: 24px;
+	padding-left: 24px;
+	border: 1px solid transparent;
+	border-radius: $borderRadius;
+
+	// Style text input element
+	font-size: 16px;
+	color: #303c4f;
+	font-weight: 500;
+}
+
+// Style icon
+.icon {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	padding: 0 12px;
+}
+
+// Style lable
+.label {
+	font-size: 16px;
+	font-weight: 600;
+	color: rgba(0, 0, 0, 0.88);
+	display: block;
+	margin-bottom: 8px;
+}
+
+// Style text error
+.errorText {
+	margin-left: 0px;
+	margin-top: 4px;
+	font-size: 14px;
+	color: $colorError;
+}
+
+// Style icon handle
+.iconHandle {
+	user-select: none;
+	cursor: pointer;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	color: #5e6167;
+	font-size: 20px;
+	margin-right: 8px;
+}

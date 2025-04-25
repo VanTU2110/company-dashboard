@@ -1,0 +1,83 @@
+.popup {
+	background-color: #fff;
+	width: 380px;
+	max-width: 95vw;
+	padding: 32px 24px;
+	display: flex;
+	justify-content: center;
+	flex-direction: column;
+	border-radius: 12px;
+
+	.titlePopup {
+		margin-top: 12px;
+		font-size: 26px;
+		font-weight: 600;
+		text-align: center;
+	}
+
+	.note {
+		color: #515c69;
+		font-weight: normal;
+		line-height: inherit;
+		margin-top: 4px;
+		font-size: 13px;
+		text-align: center;
+	}
+
+	.groupBtnPopup {
+		margin-top: 16px;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		gap: 16px;
+	}
+
+	&.warn {
+		.titlePopup,
+		.iconWarn {
+			color: #5755ff;
+		}
+	}
+
+	&.green {
+		.titlePopup,
+		.iconWarn {
+			color: rgba(24, 188, 60, 1);
+		}
+	}
+
+	&.danger {
+		.titlePopup,
+		.iconWarn {
+			color: #f85050;
+		}
+	}
+}
+
+.iconWarn {
+	font-size: 64px;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	color: var(--primary);
+}
+
+@media (max-width: 764px) {
+	.popup {
+		padding: 12px 24px;
+
+		.titlePopup {
+			font-size: 18px;
+		}
+
+		.note {
+			margin-top: 6px;
+			font-size: 13px;
+		}
+
+		.groupBtnPopup {
+			margin-top: 24px;
+			gap: 12px;
+		}
+	}
+}

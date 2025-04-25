@@ -1,0 +1,100 @@
+$borderRadius: 6px;
+$borderColor: #d9d9d9;
+$colorFocus: #0060af;
+$colorDisabled: #dfe0e2;
+$backgroundColor: #fff;
+$paddingHeight: 12px;
+
+.label {
+	font-size: 16px;
+	font-weight: 600;
+	color: rgba(0, 0, 0, 0.88);
+	display: block;
+	margin-bottom: 8px;
+}
+
+.select {
+	position: relative;
+	user-select: none;
+}
+
+.container {
+	flex: 1;
+}
+
+.value {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	width: 100%;
+	padding: $paddingHeight 24px;
+	border: 1px solid $borderColor;
+	background-color: $backgroundColor;
+	border-radius: $borderRadius;
+	cursor: pointer;
+
+	.text {
+		margin: 0;
+		font-size: 16px;
+		color: #303c4f;
+		font-weight: 500;
+
+		&.placeholder {
+			color: #777e90;
+		}
+	}
+
+	.icon {
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		transition: all 0.3s;
+	}
+
+	&.active {
+		border: 1px solid $colorFocus;
+
+		.icon {
+			color: #777e90;
+			transform: rotate(180deg);
+		}
+	}
+}
+
+.containerOption {
+	margin-top: 6px;
+	position: absolute;
+	width: 100%;
+	border-radius: $borderRadius;
+	z-index: 10;
+	padding: $paddingHeight;
+	background-color: $backgroundColor;
+	transform: scaleY(0);
+	transform-origin: top center;
+	visibility: hidden;
+	opacity: 0;
+	transition: 0.15s;
+	border: 1px solid $colorFocus;
+
+	&.active {
+		visibility: visible;
+		opacity: 1;
+		transform: scaleY(1);
+	}
+}
+
+.overflow {
+	max-height: 300px;
+	overflow-y: auto;
+}
+
+.input_search {
+	border: 1px solid $borderColor;
+	color: rgb(0, 0, 0);
+	border-radius: $borderRadius;
+	cursor: pointer;
+	width: 100%;
+	padding: 6px 8px;
+	margin-bottom: 10px;
+	font-size: 14px;
+}
