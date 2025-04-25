@@ -5,6 +5,7 @@ import JobsPage from './pages/jobs';
 import ApplicationsPage from './pages/applications';
 import CompanyProfilePage from './pages/company';
 import LoginPage from './pages/auth/login';
+import RegisterCompanyPage from './pages/auth/register';
 import CreateCompanyPage from './pages/company/CreateCompanyPage';
 import RequireAuth from './components/RequireAuth';
 import EditCompany from './pages/company/EditCompany';
@@ -19,6 +20,7 @@ const App = () => {
     <Routes>
       {/* Trang đăng nhập không cần xác thực */}
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/register-company" element={<RegisterCompanyPage />} />
       
       {/* Chuyển hướng từ root đến dashboard */}
       <Route path="/" element={<Navigate to="/dashboard" />} />

@@ -27,8 +27,8 @@ export interface Company {
     company: Company;
     tittle: string;
     description: string;
-    jobType: 'fulltime' | 'parttime' | 'internship' | string; // bạn có thể thay `string` bằng enum cụ thể nếu biết hết các loại
-    salaryType: 'fixed' | 'range' | string;
+    jobType: 'remote' | 'parttime' | 'internship' | string; // bạn có thể thay `string` bằng enum cụ thể nếu biết hết các loại
+    salaryType: 'fixed' | 'monthly' | 'daily'|'hourly'| string;
     salaryMin: number;
     salaryMax: number;
     salaryFixed: number;

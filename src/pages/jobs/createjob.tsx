@@ -66,7 +66,7 @@ const CreateJobPage = () => {
   };
 
   const validateForm = (): boolean => {
-    if (!jobData.tittle) {
+    if (!jobData.title) {
       setError('Vui lòng nhập tiêu đề công việc');
       return false;
     }
@@ -176,7 +176,7 @@ const CreateJobPage = () => {
                 <input
                   type="text"
                   name="tittle"
-                  value={jobData.tittle}
+                  value={jobData.title}
                   onChange={handleInputChange}
                   placeholder="Nhập tiêu đề công việc"
                   className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
