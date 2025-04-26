@@ -6,6 +6,7 @@ import { useCompany } from '../../contexts/CompanyContext';
 import { SearchOutlined } from '@ant-design/icons';
 import { JobItem, GetJobListParams } from '../../types/job';
 import { Input, Select, Button, Spin, Pagination, Table } from 'antd';
+import { Link } from 'react-router-dom';
 
 const JobApplicationsPage: React.FC = () => {
   const { companyData } = useCompany();
@@ -159,8 +160,8 @@ const JobApplicationsPage: React.FC = () => {
   const jobColumns = [
     {
       title: 'Tiêu đề công việc',
-      dataIndex: 'tittle', // Lưu ý: Trong interface là 'tittle' không phải 'title'
-      key: 'tittle',
+      dataIndex: 'title', // Lưu ý: Trong interface là 'title' không phải 'title'
+      key: 'title',
     },
     {
       title: 'Loại công việc',
@@ -205,7 +206,7 @@ const JobApplicationsPage: React.FC = () => {
       render: (text: string, record: JobItem) => (
         <Button 
           type={selectedJob === record.uuid ? 'primary' : 'default'}
-          onClick={() => handleJobSelect(record.uuid, record.tittle)}
+          onClick={() => handleJobSelect(record.uuid, record.title)}
           className={selectedJob === record.uuid ? 'bg-blue-500 hover:bg-blue-600' : 'bg-white hover:bg-gray-50'}
         >
           Xem ứng viên
@@ -222,6 +223,14 @@ const JobApplicationsPage: React.FC = () => {
       key: 'studentUuid',
       ellipsis: true,
       width: 200,
+      render: (studentUuid: string) => (
+        <Link 
+          to={`/student-detail/${studentUuid}`} 
+          className="text-blue-600 hover:text-blue-800 hover:underline"
+        >
+          {studentUuid}
+        </Link>
+      )
     },
     {
       title: 'Thư xin việc',

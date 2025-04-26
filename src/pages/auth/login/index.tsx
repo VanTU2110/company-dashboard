@@ -1,9 +1,9 @@
-import { useForm } from 'react-hook-form';
+import { Form, Input, Button, Typography, message, Card } from 'antd';
 import { loginCompany } from '../../../services/authService';
 import { getCompanyDetail } from '../../../services/companyService';
 import { useNavigate } from 'react-router-dom';
 
-
+const { Title, Text, Paragraph } = Typography;
 
 type FormData = {
   email: string;
@@ -11,30 +11,27 @@ type FormData = {
 };
 
 const LoginCompanyPage = () => {
-  const { register, handleSubmit } = useForm<FormData>();
   const navigate = useNavigate();
 
-  const onSubmit = async (data: FormData) => {
+  const onFinish = async (values: FormData) => {
     try {
-      const res = await loginCompany(data);
+      const res = await loginCompany(values);
 
       if (res.error.code !== 'success') {
-        alert('Đăng nhập thất bại!');
+        message.error('Đăng nhập thất bại!');
         return;
       }
 
-      const { token, role,uuid,email } = res.data;
+      const { token, role, uuid } = res.data;
 
       if (role !== 1) {
-        alert('Không có quyền đăng nhập vào company dashboard.');
+        message.warning('Không có quyền đăng nhập vào dashboard công ty.');
         return;
       }
 
-      // Lưu token vào localStorage
       localStorage.setItem('token', token);
       localStorage.setItem('useruuid', String(uuid));
 
-      // Gọi API kiểm tra có company chưa
       const detailRes = await getCompanyDetail();
 
       if (detailRes.data?.uuid) {
@@ -42,45 +39,70 @@ const LoginCompanyPage = () => {
       } else {
         navigate('/create-company');
       }
-
     } catch (err) {
-      alert('Sai tài khoản hoặc mật khẩu!');
+      message.error('Sai tài khoản hoặc mật khẩu!');
     }
   };
 
   return (
-    <div className="max-w-md mx-auto mt-20 p-6 bg-white rounded shadow">
-      <h1 className="text-2xl font-bold mb-6 text-center">Đăng nhập công ty</h1>
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        <input
-          {...register('email')}
-          type="email"
-          placeholder="Email"
-          className="w-full px-4 py-2 border rounded"
-        />
-        <input
-          {...register('password')}
-          type="password"
-          placeholder="Mật khẩu"
-          className="w-full px-4 py-2 border rounded"
-        />
-        <button
-          type="submit"
-          className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition"
-        >
-          Đăng nhập
-        </button>
-      </form>
-
-      <div className="mt-4 text-center">
-        <span>Bạn chưa có tài khoản?</span>{' '}
-        <button
-          className="text-blue-600 hover:underline"
-          onClick={() => navigate('/register-company')}
-        >
-          Đăng kí ngay
-        </button>
+    <div className="flex items-center justify-center min-h-screen bg-gray-50 px-4">
+      <div className="text-center mb-8">
+        <Title level={2} className="text-gray-800">
+          Chào mừng đến với
+        </Title>
+        <Paragraph className="text-lg text-gray-600">
+          Trang quản trị Công ty - Doanh nghiệp
+        </Paragraph>
       </div>
+
+      <Card className="w-full max-w-md shadow-lg" bordered={false}>
+        <Title level={3} className="text-center mb-6">
+          Đăng nhập công ty
+        </Title>
+
+        <Form
+          layout="vertical"
+          onFinish={onFinish}
+          initialValues={{ email: '', password: '' }}
+        >
+          <Form.Item
+            label="Email"
+            name="email"
+            rules={[
+              { required: true, message: 'Vui lòng nhập email!' },
+              { type: 'email', message: 'Email không hợp lệ!' },
+            ]}
+          >
+            <Input placeholder="Nhập email của bạn" />
+          </Form.Item>
+
+          <Form.Item
+            label="Mật khẩu"
+            name="password"
+            rules={[{ required: true, message: 'Vui lòng nhập mật khẩu!' }]}
+          >
+            <Input.Password placeholder="Nhập mật khẩu" />
+          </Form.Item>
+
+          <Form.Item>
+            <Button
+              type="primary"
+              htmlType="submit"
+              block
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              Đăng nhập
+            </Button>
+          </Form.Item>
+        </Form>
+
+        <div className="text-center mt-4">
+          <Text>Bạn chưa có tài khoản?</Text>{' '}
+          <Button type="link" onClick={() => navigate('/register-company')}>
+            Đăng kí ngay
+          </Button>
+        </div>
+      </Card>
     </div>
   );
 };

@@ -27,7 +27,7 @@ api.interceptors.request.use((config) => {
     // Nếu là POST/PUT thì thêm vào data
     if (config.data && typeof config.data === 'object') {
       config.data = {
-        ...config.data,
+        ...config.data, 
         time,
         keyCert,
       };

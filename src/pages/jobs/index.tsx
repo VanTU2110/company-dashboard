@@ -112,36 +112,67 @@ const JobsPage = () => {
   };
 
   const handleFilterFinish = (values: any) => {
-    // Xử lý giá trị từ form
+    // Tạo object mới với các giá trị từ form
     const newParams = {
       ...searchParams,
       ...values,
       page: 1,
     };
+    
+    // Cập nhật state
     setSearchParams(newParams);
     setIsFilterOpen(false);
     setCurrentPage(1);
+    
+    // Gọi fetchJobs với giá trị newParams trực tiếp thay vì dùng searchParams
     setTimeout(() => {
-      fetchJobs();
+      // Thay vì dùng fetchJobs() mà không có tham số
+      getListPageJob({ 
+        ...newParams, 
+        companyUuid: companyUuid 
+      }).then(response => {
+        setJobs(response.data.items);
+        setTotalPages(response.data.pagination.totalPage);
+        setTotalItems(response.data.pagination.totalCount || response.data.items.length * response.data.pagination.totalPage);
+        setLoading(false);
+      }).catch(error => {
+        console.error('Error fetching jobs:', error);
+        setLoading(false);
+      });
     }, 0);
   };
 
   const handleFilterReset = () => {
     form.resetFields();
-    setSearchParams({
+    
+    const resetParams = {
       pageSize: 10,
       page: 1,
       keyword: '',
       jobType: '',
-      salaryType: '',
+      salaryType: '', // Reset về rỗng để hiển thị tất cả các loại lương
       salaryMin: undefined,
       salaryMax: undefined,
       salaryFixed: undefined,
       companyUuid: companyUuid,
-    });
+    };
+    
+    setSearchParams(resetParams);
     setCurrentPage(1);
+    
     setTimeout(() => {
-      fetchJobs();
+      getListPageJob({ 
+        ...resetParams, 
+        companyUuid: companyUuid 
+      }).then(response => {
+        setJobs(response.data.items);
+        setTotalPages(response.data.pagination.totalPage);
+        setTotalItems(response.data.pagination.totalCount || response.data.items.length * response.data.pagination.totalPage);
+        setLoading(false);
+      }).catch(error => {
+        console.error('Error fetching jobs:', error);
+        setLoading(false);
+      });
     }, 0);
   };
   
@@ -153,16 +184,19 @@ const JobsPage = () => {
     navigate('/jobs/create');
   };
   
-  // Format lương với đơn vị tiền tệ
-  const formatSalary = (job: JobItem) => {
-    if (job.salaryType === 'fixed') {
-      return `${job.salaryFixed.toLocaleString()} ${job.currency}`;
-    } else if (job.salaryType === 'range') {
-      return `${job.salaryMin.toLocaleString()} - ${job.salaryMax.toLocaleString()} ${job.currency}`;
-    }
-    return 'Thương lượng';
-  };
-
+// Format lương với đơn vị tiền tệ
+const formatSalary = (job: JobItem) => {
+  if (job.salaryType === 'fixed') {
+    return `${job.salaryFixed.toLocaleString()} ${job.currency}`;
+  } else if (job.salaryType === 'monthly') {
+    return `${job.salaryMin?.toLocaleString() || 0} - ${job.salaryMax?.toLocaleString() || 0} ${job.currency}/tháng`;
+  } else if (job.salaryType === 'daily') {
+    return `${job.salaryMin?.toLocaleString() || 0} - ${job.salaryMax?.toLocaleString() || 0} ${job.currency}/ngày`;
+  } else if (job.salaryType === 'hourly') {
+    return `${job.salaryMin?.toLocaleString() || 0} - ${job.salaryMax?.toLocaleString() || 0} ${job.currency}/giờ`;
+  }
+  return 'Thương lượng';
+};
   // Mapping cho hiển thị của JobType
   const jobTypeDisplay: Record<string, string> = {
     'parttime': 'Bán thời gian',
@@ -286,7 +320,7 @@ const JobsPage = () => {
                   <Col xs={24} sm={16}>
                     <Space direction="vertical" size={12} style={{ width: '100%' }}>
                       <div>
-                        <Title level={4} style={{ marginBottom: '8px' }}>{job.tittle}</Title>
+                        <Title level={4} style={{ marginBottom: '8px' }}>{job.title}</Title>
                         <Space align="center">
                           <Avatar size="small" src={job.company?.logo || undefined}>
                             {!job.company?.logo && job.company?.name.charAt(0)}
@@ -401,17 +435,17 @@ const JobsPage = () => {
         }
       >
         <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleFilterFinish}
-          initialValues={{
-            jobType: searchParams.jobType || '',
-            salaryType: searchParams.salaryType || '',
-            salaryMin: searchParams.salaryMin,
-            salaryMax: searchParams.salaryMax,
-            pageSize: searchParams.pageSize || 10,
-          }}
-        >
+  form={form}
+  layout="vertical"
+  onFinish={handleFilterFinish}
+  initialValues={{
+    jobType: searchParams.jobType || '',
+    salaryType: searchParams.salaryType || '',
+    salaryMin: searchParams.salaryMin,
+    salaryMax: searchParams.salaryMax,
+    pageSize: searchParams.pageSize || 10,
+  }}
+>
           <Form.Item name="jobType" label="Loại công việc">
             <Select placeholder="Tất cả">
               <Option value="">Tất cả</Option>
@@ -422,12 +456,14 @@ const JobsPage = () => {
           </Form.Item>
 
           <Form.Item name="salaryType" label="Loại lương">
-            <Select placeholder="Tất cả">
-              <Option value="">Tất cả</Option>
-              <Option value="fixed">Cố định</Option>
-              <Option value="range">Khoảng</Option>
-            </Select>
-          </Form.Item>
+  <Select placeholder="Tất cả">
+    <Option value="">Tất cả</Option>
+    <Option value="fixed">Cố định</Option>
+    <Option value="monthly">Theo tháng</Option>
+    <Option value="daily">Theo ngày</Option>
+    <Option value="hourly">Theo giờ</Option>
+  </Select>
+</Form.Item>
 
           <Form.Item name="salaryMin" label="Lương tối thiểu">
             <InputNumber 

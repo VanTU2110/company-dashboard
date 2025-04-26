@@ -48,7 +48,6 @@ const JobDetailPage = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState<boolean>(false);
-  const [formData, setFormData] = useState<UpdateJob | null>(null);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState<boolean>(false);
 
@@ -72,23 +71,10 @@ const JobDetailPage = () => {
         const jobData = response.data;
         
         setJob(jobData);
-        setFormData({
-          uuid: jobData.uuid,
-          title: jobData.tittle,
-          description: jobData.description,
-          jobType: jobData.jobType,
-          salaryType: jobData.salaryType,
-          salaryMin: jobData.salaryMin,
-          salaryMax: jobData.salaryMax,
-          salaryFixed: jobData.salaryFixed,
-          currency: jobData.currency,
-          requirements: jobData.requirements,
-          companyUuid: jobData.company.uuid
-        });
 
         // Set initial form values
         form.setFieldsValue({
-          title: jobData.tittle,
+          title: jobData.title,
           description: jobData.description,
           jobType: jobData.jobType,
           salaryType: jobData.salaryType,
@@ -110,21 +96,33 @@ const JobDetailPage = () => {
     getJobDetail();
   }, [uuid, form]);
 
-  const handleFormValuesChange = (changedValues: any, allValues: any) => {
-    setFormData({ ...formData, ...changedValues } as UpdateJob);
-  };
-
   const handleSave = async () => {
     try {
-      await form.validateFields();
-      if (!formData) return;
+      // Lấy tất cả giá trị hiện tại từ form
+      const values = await form.validateFields();
       
-      if (!formData.companyUuid && job && job.company) {
-        formData.companyUuid = job.company.uuid;
+      // Đảm bảo có companyUuid
+      if (!values.companyUuid && job && job.company) {
+        values.companyUuid = job.company.uuid;
       }
       
+      // Tạo object với đầy đủ thông tin cần update
+      const updatedData: UpdateJob = {
+        uuid: uuid as string,
+        title: values.title,
+        description: values.description,
+        jobType: values.jobType,
+        salaryType: values.salaryType,
+        salaryMin: values.salaryMin,
+        salaryMax: values.salaryMax,
+        salaryFixed: values.salaryFixed,
+        currency: values.currency,
+        requirements: values.requirements,
+        companyUuid: values.companyUuid
+      };
+      
       setIsSaving(true);
-      await updateJob(formData);
+      await updateJob(updatedData);
       
       if (uuid) {
         const response = await detailJob(uuid);
@@ -152,11 +150,7 @@ const JobDetailPage = () => {
   };
 
   const handleUpdateJob = () => {
-    if (formData && !formData.companyUuid && job && job.company) {
-      setFormData(prev => {
-        if (!prev) return null;
-        return { ...prev, companyUuid: job.company.uuid };
-      });
+    if (job && job.company) {
       form.setFieldValue('companyUuid', job.company.uuid);
     }
     setIsEditing(true);
@@ -226,7 +220,7 @@ const JobDetailPage = () => {
     );
   }
 
-  if (error || !job || !formData) {
+  if (error || !job) {
     return (
       <Result
         status="404"
@@ -244,73 +238,53 @@ const JobDetailPage = () => {
   return (
     <Layout className="site-layout" style={{ minHeight: '100vh', background: '#f0f2f5' }}>
       <Content style={{ padding: '24px', margin: '0 auto', maxWidth: '1000px' }}>
-        <Card 
-          style={{ marginBottom: 24 }}
-          title={
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <Button 
-                icon={<ArrowLeftOutlined />} 
-                type="link" 
-                onClick={() => navigate('/jobs')}
-                style={{ marginRight: 16, padding: 0 }}
-              >
-                Quay lại danh sách công việc
-              </Button>
-            </div>
-          }
-          extra={
-            isEditing ? (
-              <Space>
-                <Button onClick={() => setIsEditing(false)}>
-                  Hủy
-                </Button>
-                <Button 
-                  type="primary" 
-                  icon={<SaveOutlined />} 
-                  onClick={handleSave}
-                  loading={isSaving}
-                >
-                  Lưu thay đổi
-                </Button>
-              </Space>
-            ) : (
-              <Space>
-                <Button 
-                  type="primary" 
-                  icon={<EditOutlined />} 
-                  onClick={handleUpdateJob}
-                >
-                  Cập nhật công việc
-                </Button>
-                <Button 
-                  danger 
-                  icon={<DeleteOutlined />} 
-                  onClick={() => setDeleteModalVisible(true)}
-                >
-                  Xóa
-                </Button>
-              </Space>
-            )
-          }
-        >
-          {/* Nội dung chính */}
-          {isEditing ? (
-            <Form
-              form={form}
-              layout="vertical"
-              onValuesChange={handleFormValuesChange}
-              initialValues={{
-                title: formData.title,
-                description: formData.description,
-                jobType: formData.jobType,
-                salaryType: formData.salaryType,
-                salaryMin: formData.salaryMin,
-                salaryMax: formData.salaryMax,
-                salaryFixed: formData.salaryFixed,
-                currency: formData.currency,
-                requirements: formData.requirements,
-                companyUuid: formData.companyUuid
-              }}
+        {isEditing ? (
+          // Form chỉnh sửa - đặt toàn bộ form ở đây
+          <Form
+            form={form}
+            layout="vertical"
+            initialValues={{
+              title: job.title,
+              description: job.description,
+              jobType: job.jobType,
+              salaryType: job.salaryType,
+              salaryMin: job.salaryMin,
+              salaryMax: job.salaryMax,
+              salaryFixed: job.salaryFixed,
+              currency: job.currency,
+              requirements: job.requirements,
+              companyUuid: job.company.uuid
+            }}
+          >
+            <Card 
+              style={{ marginBottom: 24 }}
+              title={
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <Button 
+                    icon={<ArrowLeftOutlined />} 
+                    type="link" 
+                    onClick={() => navigate('/jobs')}
+                    style={{ marginRight: 16, padding: 0 }}
+                  >
+                    Quay lại danh sách công việc
+                  </Button>
+                </div>
+              }
+              extra={
+                <Space>
+                  <Button onClick={() => setIsEditing(false)}>
+                    Hủy
+                  </Button>
+                  <Button 
+                    type="primary" 
+                    icon={<SaveOutlined />} 
+                    onClick={handleSave}
+                    loading={isSaving}
+                  >
+                    Lưu thay đổi
+                  </Button>
+                </Space>
+              }
             >
               <Form.Item
                 name="title"
@@ -428,12 +402,123 @@ const JobDetailPage = () => {
               <Form.Item name="companyUuid" hidden>
                 <Input />
               </Form.Item>
-            </Form>
-          ) : (
-            <>
+            </Card>
+            
+            {/* Phần Mô tả công việc */}
+            <Card 
+              title="Mô tả công việc" 
+              style={{ marginBottom: 24 }}
+            >
+              <Form.Item
+                name="description"
+                rules={[{ required: true, message: 'Vui lòng nhập mô tả công việc' }]}
+              >
+                <TextArea 
+                  rows={6}
+                  placeholder="Nhập mô tả công việc"
+                />
+              </Form.Item>
+            </Card>
+            
+            {/* Phần Yêu cầu */}
+            <Card 
+              title="Yêu cầu" 
+              style={{ marginBottom: 24 }}
+            >
+              <Form.Item
+                name="requirements"
+                rules={[{ required: true, message: 'Vui lòng nhập yêu cầu công việc' }]}
+              >
+                <TextArea 
+                  rows={6}
+                  placeholder="Nhập yêu cầu công việc"
+                />
+              </Form.Item>
+            </Card>
+            
+            {/* Các phần thông tin khác không cần chỉnh sửa */}
+            <Card 
+              title="Kỹ năng yêu cầu" 
+              style={{ marginBottom: 24 }}
+            >
+              {job.listSkill && job.listSkill.length > 0 ? (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {job.listSkill.map((jobSkill) => (
+                    <Tag key={jobSkill.uuid} color="blue" style={{ padding: '4px 8px', fontSize: 14 }}>
+                      {jobSkill.skill.name}
+                    </Tag>
+                  ))}
+                </div>
+              ) : (
+                <Empty description="Chưa có kỹ năng nào được thêm vào." />
+              )}
+            </Card>
+            
+            <Card 
+              title="Lịch làm việc"
+            >
+              {job.schedule && job.schedule.length > 0 ? (
+                <Row gutter={[16, 16]}>
+                  {job.schedule.map((schedule) => (
+                    <Col key={schedule.uuid} xs={24} sm={12} md={8}>
+                      <Card size="small" hoverable>
+                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                          <ClockCircleOutlined style={{ fontSize: 18, color: '#1890ff', marginRight: 12 }} />
+                          <div>
+                            <div style={{ fontWeight: 500 }}>{formatDayOfWeek(schedule.dayOfWeek)}</div>
+                            <div style={{ color: 'rgba(0, 0, 0, 0.65)' }}>
+                              {schedule.startTime.substring(0, 5)} - {schedule.endTime.substring(0, 5)}
+                            </div>
+                          </div>
+                        </div>
+                      </Card>
+                    </Col>
+                  ))}
+                </Row>
+              ) : (
+                <Empty description="Chưa có lịch làm việc nào được thêm vào." />
+              )}
+            </Card>
+          </Form>
+        ) : (
+          // Chế độ xem thông tin
+          <>
+            <Card 
+              style={{ marginBottom: 24 }}
+              title={
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <Button 
+                    icon={<ArrowLeftOutlined />} 
+                    type="link" 
+                    onClick={() => navigate('/jobs')}
+                    style={{ marginRight: 16, padding: 0 }}
+                  >
+                    Quay lại danh sách công việc
+                  </Button>
+                </div>
+              }
+              extra={
+                <Space>
+                  <Button 
+                    type="primary" 
+                    icon={<EditOutlined />} 
+                    onClick={handleUpdateJob}
+                  >
+                    Cập nhật công việc
+                  </Button>
+                  <Button 
+                    danger 
+                    icon={<DeleteOutlined />} 
+                    onClick={() => setDeleteModalVisible(true)}
+                  >
+                    Xóa
+                  </Button>
+                </Space>
+              }
+            >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
                 <div>
-                  <Title level={3} style={{ marginBottom: 8 }}>{job.tittle}</Title>
+                  <Title level={3} style={{ marginBottom: 8 }}>{job.title}</Title>
                   <Space direction="vertical" size={2}>
                     <Text>
                       <BankOutlined style={{ marginRight: 8 }} />
@@ -459,134 +544,110 @@ const JobDetailPage = () => {
                   <div style={{ width: 120, height: 70 }}></div>
                 </Badge.Ribbon>
               </div>
-            </>
-          )}
-        </Card>
-        
-        {/* Phần Mô tả công việc */}
-        <Card 
-          title="Mô tả công việc" 
-          style={{ marginBottom: 24 }}
-        >
-          {isEditing ? (
-            <Form.Item
-              name="description"
-              noStyle
+            </Card>
+            
+            {/* Phần Mô tả công việc */}
+            <Card 
+              title="Mô tả công việc" 
+              style={{ marginBottom: 24 }}
             >
-              <TextArea 
-                rows={6}
-                placeholder="Nhập mô tả công việc"
-              />
-            </Form.Item>
-          ) : (
-            <Paragraph style={{ whiteSpace: 'pre-line' }}>
-              {job.description}
-            </Paragraph>
-          )}
-        </Card>
-        
-        {/* Phần Yêu cầu */}
-        <Card 
-          title="Yêu cầu" 
-          style={{ marginBottom: 24 }}
-        >
-          {isEditing ? (
-            <Form.Item
-              name="requirements"
-              noStyle
+              <Paragraph style={{ whiteSpace: 'pre-line' }}>
+                {job.description}
+              </Paragraph>
+            </Card>
+            
+            {/* Phần Yêu cầu */}
+            <Card 
+              title="Yêu cầu" 
+              style={{ marginBottom: 24 }}
             >
-              <TextArea 
-                rows={6}
-                placeholder="Nhập yêu cầu công việc"
-              />
-            </Form.Item>
-          ) : (
-            <Paragraph style={{ whiteSpace: 'pre-line' }}>
-              {job.requirements}
-            </Paragraph>
-          )}
-        </Card>
-        
-        {/* Phần Kỹ năng yêu cầu */}
-        <Card 
-          title={
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-              <span>Kỹ năng yêu cầu</span>
-              <Button 
-                type="primary" 
-                icon={<PlusOutlined />} 
-                onClick={handleAddSkill}
-              >
-                Thêm mới kĩ năng
-              </Button>
-            </div>
-          }
-          style={{ marginBottom: 24 }}
-        >
-          {job.listSkill && job.listSkill.length > 0 ? (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {job.listSkill.map((jobSkill) => (
-                <Tag key={jobSkill.uuid} color="blue" style={{ padding: '4px 8px', fontSize: 14 }}>
-                  {jobSkill.skill.name}
-                </Tag>
-              ))}
-            </div>
-          ) : (
-            <Empty description="Chưa có kỹ năng nào được thêm vào." />
-          )}
-        </Card>
-        
-        {/* Phần Lịch làm việc */}
-        <Card 
-          title={
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-              <span>Lịch làm việc</span>
-              <Button 
-                type="primary" 
-                icon={<PlusOutlined />} 
-                onClick={handleAddSchedule}
-              >
-                Thêm mới lịch làm việc
-              </Button>
-            </div>
-          }
-        >
-          {job.schedule && job.schedule.length > 0 ? (
-            <Row gutter={[16, 16]}>
-              {job.schedule.map((schedule) => (
-                <Col key={schedule.uuid} xs={24} sm={12} md={8}>
-                  <Card size="small" hoverable>
-                    <div style={{ display: 'flex', alignItems: 'center' }}>
-                      <ClockCircleOutlined style={{ fontSize: 18, color: '#1890ff', marginRight: 12 }} />
-                      <div>
-                        <div style={{ fontWeight: 500 }}>{formatDayOfWeek(schedule.dayOfWeek)}</div>
-                        <div style={{ color: 'rgba(0, 0, 0, 0.65)' }}>
-                          {schedule.startTime.substring(0, 5)} - {schedule.endTime.substring(0, 5)}
+              <Paragraph style={{ whiteSpace: 'pre-line' }}>
+                {job.requirements}
+              </Paragraph>
+            </Card>
+            
+            {/* Phần Kỹ năng yêu cầu */}
+            <Card 
+              title={
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                  <span>Kỹ năng yêu cầu</span>
+                  <Button 
+                    type="primary" 
+                    icon={<PlusOutlined />} 
+                    onClick={handleAddSkill}
+                  >
+                    Thêm mới kĩ năng
+                  </Button>
+                </div>
+              }
+              style={{ marginBottom: 24 }}
+            >
+              {job.listSkill && job.listSkill.length > 0 ? (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {job.listSkill.map((jobSkill) => (
+                    <Tag key={jobSkill.uuid} color="blue" style={{ padding: '4px 8px', fontSize: 14 }}>
+                      {jobSkill.skill.name}
+                    </Tag>
+                  ))}
+                </div>
+              ) : (
+                <Empty description="Chưa có kỹ năng nào được thêm vào." />
+              )}
+            </Card>
+            
+            {/* Phần Lịch làm việc */}
+            <Card 
+              title={
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                  <span>Lịch làm việc</span>
+                  <Button 
+                    type="primary" 
+                    icon={<PlusOutlined />} 
+                    onClick={handleAddSchedule}
+                  >
+                    Thêm mới lịch làm việc
+                  </Button>
+                </div>
+              }
+            >
+              {job.schedule && job.schedule.length > 0 ? (
+                <Row gutter={[16, 16]}>
+                  {job.schedule.map((schedule) => (
+                    <Col key={schedule.uuid} xs={24} sm={12} md={8}>
+                      <Card size="small" hoverable>
+                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                          <ClockCircleOutlined style={{ fontSize: 18, color: '#1890ff', marginRight: 12 }} />
+                          <div>
+                            <div style={{ fontWeight: 500 }}>{formatDayOfWeek(schedule.dayOfWeek)}</div>
+                            <div style={{ color: 'rgba(0, 0, 0, 0.65)' }}>
+                              {schedule.startTime.substring(0, 5)} - {schedule.endTime.substring(0, 5)}
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  </Card>
-                </Col>
-              ))}
-            </Row>
-          ) : (
-            <Empty description="Chưa có lịch làm việc nào được thêm vào." />
-          )}
-        </Card>
+                      </Card>
+                    </Col>
+                  ))}
+                </Row>
+              ) : (
+                <Empty description="Chưa có lịch làm việc nào được thêm vào." />
+              )}
+            </Card>
+          </>
+        )}
+        
+        {/* Modal xác nhận xóa */}
+        <Modal
+          title="Xác nhận xóa"
+          open={deleteModalVisible}
+          onOk={handleDelete}
+          onCancel={() => setDeleteModalVisible(false)}
+          okText="Xóa"
+          cancelText="Hủy"
+          okButtonProps={{ danger: true }}
+        >
+          <p>Bạn có chắc chắn muốn xóa công việc này? Hành động này không thể hoàn tác.</p>
+        </Modal>
       </Content>
-      
-      {/* Modal xác nhận xóa */}
-      <Modal
-        title="Xác nhận xóa"
-        open={deleteModalVisible}
-        onOk={handleDelete}
-        onCancel={() => setDeleteModalVisible(false)}
-        okText="Xóa"
-        cancelText="Hủy"
-        okButtonProps={{ danger: true }}
-      >
-        <p>Bạn có chắc chắn muốn xóa công việc này? Hành động này không thể hoàn tác.</p>
-      </Modal>
     </Layout>
   );
 };

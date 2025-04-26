@@ -14,6 +14,7 @@ import CreateJobPage from './pages/jobs/createjob';
 import AddSchedulePage from "./pages/jobs/[jobUuid]/schedules/add";
 import AddJobSkillPage from "./pages/jobs/[jobUuid]/skills/add";
 import { CompanyProvider } from './contexts/CompanyContext';
+import StudentDetailPage from './pages/student/studentdetail';
 
 const App = () => {
   return (
@@ -43,6 +44,7 @@ const App = () => {
         <Route path="/jobs/:jobUuid/schedules/add" element={<AddSchedulePage />} />
         <Route path="/jobs/:jobUuid/skills/add" element={<AddJobSkillPage />} />
         <Route path="/applications" element={<ApplicationsPage />} />
+        <Route path="/student-detail/:studentUuid" element={<StudentDetailPage />} />
         <Route path="/company-profile" element={<CompanyProfilePage />} />
         <Route path="/create-company" element={<CreateCompanyPage />} />
         <Route path="/company/edit-company/:uuuuid" element={<EditCompany />} />

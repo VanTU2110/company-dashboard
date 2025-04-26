@@ -6,6 +6,7 @@ export const getListPageJob = async (params: GetJobListParams):Promise<JobListRe
     return res.data;
 }
 export const insertJob = async (data: InsertJob):Promise<JobListResponse> => {
+    console.log('Payload sent to API:', data);
     const res = await api.post('/Job/create-job', data);
     return res.data;
 }
