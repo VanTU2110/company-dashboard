@@ -40,7 +40,8 @@ const Chat: React.FC = () => {
     setActiveConversation,
     isConnected,
     connectionError,
-    reconnect
+    reconnect,
+    connection // Sử dụng connection từ context
   } = useChat();
   
   // Memoize current messages to prevent unnecessary re-renders
@@ -110,6 +111,35 @@ const Chat: React.FC = () => {
     
     try {
       setSending(true);
+      
+      // Tạo object tin nhắn tạm thời để hiển thị ngay trên UI
+      const tempMessage: Message = {
+        uuid: `temp-${Date.now()}`,
+        conversationUuid,
+        content,
+        senderUuid: companyData.uuid,
+        sendAt: new Date().toISOString(),
+        
+      };
+      
+      // Thêm tin nhắn tạm thời vào danh sách tin nhắn để hiển thị ngay
+      addMessage(conversationUuid, tempMessage);
+      
+      // Bước 1: Gửi tin nhắn qua SignalR hub trước để hiển thị tức thời
+      if (connection && isConnected) {
+        try {
+          console.log(`📤 Gửi tin nhắn qua SignalR hub: ${content}`);
+          await connection.invoke("SendMessageToConversation", conversationUuid, companyData.uuid, content);
+          console.log(`✅ Gửi tin nhắn qua SignalR thành công`);
+        } catch (signalRError) {
+          console.error(`❌ Không thể gửi tin nhắn qua SignalR: ${signalRError instanceof Error ? signalRError.message : "Lỗi không xác định"}`);
+          // Nếu SignalR thất bại, vẫn tiếp tục lưu vào DB
+        }
+      } else {
+        console.warn("Kết nối SignalR không khả dụng, chỉ gửi qua API");
+      }
+      
+      // Bước 2: Gửi tin nhắn qua API để lưu vào cơ sở dữ liệu
       const messageParams = {
         conversationUuid,
         content,
@@ -119,12 +149,18 @@ const Chat: React.FC = () => {
       const response = await sendMessage(messageParams);
       
       if (response.data) {
-        addMessage(conversationUuid, response.data);
+        // Xóa tin nhắn tạm và thêm tin nhắn thật từ API response
+        setConversationMessages(
+          conversationUuid, 
+          currentMessages
+            .filter(msg => msg.uuid !== tempMessage.uuid)
+            .concat([response.data])
+        );
       } else if (response.error) {
-        console.error(`Error: ${response.error.message}`);
+        console.error(`Lỗi: ${response.error.message}`);
       }
     } catch (err) {
-      console.error('Error sending message:', err);
+      console.error('Lỗi khi gửi tin nhắn:', err);
     } finally {
       setSending(false);
     }

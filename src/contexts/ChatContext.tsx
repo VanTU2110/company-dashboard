@@ -7,6 +7,7 @@ interface ChatContextProps {
   activeConversation: string | null;
   isConnected: boolean;
   connectionError: string | null;
+  connection: signalR.HubConnection | null; // Thêm connection vào interface
   setActiveConversation: (conversationId: string | null) => void;
   setConversationMessages: (conversationId: string, messages: Message[]) => void;
   addMessage: (conversationId: string, message: Message) => void;
@@ -182,6 +183,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children, hubUrl }) 
     activeConversation,
     isConnected,
     connectionError,
+    connection, // Thêm connection vào context value
     setActiveConversation,
     setConversationMessages,
     addMessage,
@@ -191,6 +193,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children, hubUrl }) 
     activeConversation,
     isConnected,
     connectionError,
+    connection, // Thêm connection vào dependency array
     setActiveConversation,
     setConversationMessages,
     addMessage,
