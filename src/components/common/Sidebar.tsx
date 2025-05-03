@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Briefcase, Users, Building, LogOut } from 'lucide-react';
+import { Home, Briefcase, Users, Building, LogOut,MessageCircleIcon } from 'lucide-react';
 
 const Sidebar = () => {
   const { pathname } = useLocation();
@@ -32,6 +32,10 @@ const Sidebar = () => {
           <Link to="/company-profile" className={linkClass('/company-profile')}>
             <Building size={20} /> Công ty
           </Link>
+          <Link to="/conversations" className={linkClass('/conversations')}>
+            <MessageCircleIcon size={20} /> Tin nhắn
+          </Link>
+
         </nav>
       </div>
       <div className="p-4 border-t border-gray-200">

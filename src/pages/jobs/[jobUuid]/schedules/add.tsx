@@ -32,12 +32,18 @@ export default function AddSchedulePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!jobUuid) return toast.error("Không tìm thấy Job ID!");
+    console.log("Form submission triggered");
+    
+    if (!jobUuid) {
+      console.log("Job UUID missing");
+      return toast.error("Không tìm thấy Job ID!");
+    }
 
     const start = new Date(`1970-01-01T${formData.start_time}:00`);
     const end = new Date(`1970-01-01T${formData.end_time}:00`);
 
     if (end <= start) {
+      console.log("Invalid time range");
       return toast.error("Giờ kết thúc phải sau giờ bắt đầu");
     }
 
@@ -46,13 +52,17 @@ export default function AddSchedulePage() {
       job_Uuid: jobUuid,
     };
 
+    console.log("Preparing to call API with data:", data);
+    
     try {
-      await createSchedule(data);
+      console.log("Calling createSchedule API");
+      const response = await createSchedule(data);
+      console.log("API call successful:", response);
       toast.success("Tạo lịch thành công!");
       navigate(`/jobs/${jobUuid}`);
     } catch (err) {
+      console.error("API call failed:", err);
       toast.error("Lỗi khi tạo lịch.");
-      console.error(err);
     }
   };
 
@@ -111,6 +121,7 @@ export default function AddSchedulePage() {
           <button
             type="submit"
             className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition duration-300"
+            onClick={() => console.log("Button clicked")}
           >
             <Clock className="inline-block w-5 h-5 mr-2 -mt-1" />
             Tạo lịch

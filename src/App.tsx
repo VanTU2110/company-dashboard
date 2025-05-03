@@ -15,6 +15,14 @@ import AddSchedulePage from "./pages/jobs/[jobUuid]/schedules/add";
 import AddJobSkillPage from "./pages/jobs/[jobUuid]/skills/add";
 import { CompanyProvider } from './contexts/CompanyContext';
 import StudentDetailPage from './pages/student/studentdetail';
+import ConversationsPage from './pages/chat/conversations';
+import ChatPage from './pages/chat/chat';
+import { ChatProvider } from './contexts/ChatContext';
+
+// Sử dụng biến môi trường hoặc cấu hình động cho URL hub
+// Có thể sử dụng import.meta.env.VITE_SIGNALR_HUB_URL nếu dùng Vite
+// Hoặc process.env.REACT_APP_SIGNALR_HUB_URL nếu dùng Create React App
+const SIGNALR_HUB_URL = 'ws://localhost:5109/chathub';
 
 const App = () => {
   return (
@@ -26,13 +34,15 @@ const App = () => {
       {/* Chuyển hướng từ root đến dashboard */}
       <Route path="/" element={<Navigate to="/dashboard" />} />
       
-      {/* Tất cả các trang khác đều yêu cầu xác thực và bọc trong CompanyProvider */}
+      {/* Bọc CompanyProvider và ChatProvider ở cấp cao nhất cho các routes có yêu cầu xác thực */}
       <Route
         path="/"
         element={
           <RequireAuth>
             <CompanyProvider>
-              <DashboardLayout />
+              <ChatProvider hubUrl={SIGNALR_HUB_URL}>
+                <DashboardLayout />
+              </ChatProvider>
             </CompanyProvider>
           </RequireAuth>
         }
@@ -48,6 +58,8 @@ const App = () => {
         <Route path="/company-profile" element={<CompanyProfilePage />} />
         <Route path="/create-company" element={<CreateCompanyPage />} />
         <Route path="/company/edit-company/:uuuuid" element={<EditCompany />} />
+        <Route path="/conversations" element={<ConversationsPage />} />
+        <Route path="/conversations/:conversationUuid" element={<ChatPage />} />
       </Route>
     </Routes>
   );
