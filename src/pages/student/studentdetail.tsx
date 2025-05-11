@@ -2,24 +2,28 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getStudentDetail } from '../../services/studentService';
 import { StudentDetail } from '../../types/student';
-import { 
-  Spin, 
-  Card, 
-  Avatar, 
-  Button, 
-  Badge, 
-  Timeline, 
-  Divider, 
-  Tag, 
-  Alert, 
-  Empty 
+import { useNavigate } from 'react-router-dom';
+import { createConversation } from '../../services/conversationService';
+import { useCompany } from '../../contexts/CompanyContext';
+
+import {
+  Spin,
+  Card,
+  Avatar,
+  Button,
+  Badge,
+  Timeline,
+  Divider,
+  Tag,
+  Alert,
+  Empty
 } from 'antd';
-import { 
-  ArrowLeftOutlined, 
-  UserOutlined, 
-  CalendarOutlined, 
-  PhoneOutlined, 
-  EnvironmentOutlined, 
+import {
+  ArrowLeftOutlined,
+  UserOutlined,
+  CalendarOutlined,
+  PhoneOutlined,
+  EnvironmentOutlined,
   BankOutlined,
   BookOutlined,
   ClockCircleOutlined,
@@ -31,11 +35,12 @@ const StudentDetailPage: React.FC = () => {
   const [student, setStudent] = useState<StudentDetail | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-
+  const navigate = useNavigate();
+  const { companyData } = useCompany();
   useEffect(() => {
     const fetchStudentDetail = async () => {
       if (!studentUuid) return;
-      
+
       setLoading(true);
       try {
         const response = await getStudentDetail(studentUuid);
@@ -50,6 +55,21 @@ const StudentDetailPage: React.FC = () => {
 
     fetchStudentDetail();
   }, [studentUuid]);
+  const handleMessage = async () => {
+    if (!student || !companyData?.uuid) return;
+
+    try {
+      const response = await createConversation({
+        studentUuid: student.uuid,
+        companyUuid: companyData?.uuid,
+      });
+
+      navigate(`/conversations/${response.data.uuid}`);
+    } catch (err) {
+      console.error('Lỗi khi tạo cuộc trò chuyện:', err);
+      // Có thể thêm toast hoặc alert nếu muốn
+    }
+  };
 
   if (loading) {
     return (
@@ -118,7 +138,7 @@ const StudentDetailPage: React.FC = () => {
       'Advanced': 'purple',
       'Expert': 'red'
     };
-    
+
     return (
       <Tag color={colorMap[proficiency] || 'default'}>
         {proficiency}
@@ -151,9 +171,9 @@ const StudentDetailPage: React.FC = () => {
         <Card className="shadow-md mb-6 overflow-hidden">
           <div className="md:flex">
             <div className="md:w-1/4 flex justify-center items-start mb-4 md:mb-0">
-              <Avatar 
-                size={100} 
-                style={{ 
+              <Avatar
+                size={100}
+                style={{
                   backgroundColor: '#1890ff',
                   display: 'flex',
                   justifyContent: 'center',
@@ -165,17 +185,23 @@ const StudentDetailPage: React.FC = () => {
               </Avatar>
             </div>
             <div className="md:w-3/4">
-              <h1 className="text-2xl font-bold text-gray-800 mb-2">
-                {student.fullname}
-              </h1>
+              <div className="flex justify-between items-start">
+                <h1 className="text-2xl font-bold text-gray-800 mb-2">
+                  {student.fullname}
+                </h1>
+                <Button type="primary" onClick={handleMessage}>
+                  Nhắn tin
+                </Button>
+              </div>
+
               <div className="flex flex-wrap items-center gap-4 text-gray-600 mb-4">
                 <span className="flex items-center">
                   <IdcardOutlined className="mr-2" />
                   {student.uuid}
                 </span>
-                <Badge 
-                  status={student.gender === 0 ? "processing" : "success"} 
-                  text={getGender(student.gender)} 
+                <Badge
+                  status={student.gender === 0 ? "processing" : "success"}
+                  text={getGender(student.gender)}
                 />
                 <span className="flex items-center">
                   <PhoneOutlined className="mr-2" />
@@ -202,13 +228,13 @@ const StudentDetailPage: React.FC = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Địa chỉ */}
-          <Card 
+          <Card
             title={
               <span className="flex items-center">
-                <EnvironmentOutlined className="mr-2" /> 
+                <EnvironmentOutlined className="mr-2" />
                 Địa chỉ
               </span>
-            } 
+            }
             className="shadow-md col-span-1"
           >
             <div className="space-y-3">
@@ -228,20 +254,20 @@ const StudentDetailPage: React.FC = () => {
           </Card>
 
           {/* Kỹ năng */}
-          <Card 
+          <Card
             title={
               <span className="flex items-center">
-                <UserOutlined className="mr-2" /> 
+                <UserOutlined className="mr-2" />
                 Kỹ năng
               </span>
-            } 
+            }
             className="shadow-md col-span-1 md:col-span-2"
           >
             {student.listSkill && student.listSkill.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {student.listSkill.map((skillItem) => (
-                  <div 
-                    key={skillItem.uuid} 
+                  <div
+                    key={skillItem.uuid}
                     className="flex items-center justify-between border border-gray-200 rounded-lg p-3"
                   >
                     <span className="font-medium">{skillItem.skill.name}</span>
@@ -255,19 +281,19 @@ const StudentDetailPage: React.FC = () => {
           </Card>
 
           {/* Lịch trình */}
-          <Card 
+          <Card
             title={
               <span className="flex items-center">
-                <ClockCircleOutlined className="mr-2" /> 
+                <ClockCircleOutlined className="mr-2" />
                 Lịch trình khả dụng
               </span>
-            } 
+            }
             className="shadow-md col-span-1 md:col-span-3"
           >
             {student.availabilities && student.availabilities.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {student.availabilities.map((availability) => (
-                  <div 
+                  <div
                     key={availability.uuid}
                     className="border border-gray-200 rounded-lg p-4 bg-gray-50"
                   >

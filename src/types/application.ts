@@ -25,3 +25,7 @@ export interface Application {
     pageSize: number;
     page: number;
   }
+  export interface UpdateStatusParams {
+    uuid: string;
+    status: string; 
+    }

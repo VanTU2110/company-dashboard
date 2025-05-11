@@ -12,3 +12,14 @@ export interface ConversationListResponse {
         message: string;
     };
 }
+export interface ConversationResponse {
+    data: Conversation;
+    error: {
+        code: string;
+        message: string;
+    };
+}
+export interface ConversationCreateRequest {
+    studentUuid: string;
+    companyUuid: string;
+}
