@@ -29,3 +29,17 @@ export interface Application {
     uuid: string;
     status: string; 
     }
+    export interface AddNoteParams {
+      uuid: string;
+      note: string; 
+    }
+    export interface CancelApplyParams {
+      application_uuid: string;
+    }
+  export interface UpdateStatusResponse {
+    data: Application;
+    error: {
+      code: string; 
+      message: string;
+    };
+  }

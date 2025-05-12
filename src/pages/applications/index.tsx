@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { getListPageJob } from '../../services/jobService';
-import { getListByJob } from '../../services/applicationService';
+import { getListByJob, updateStatus, addNote, cancelApply } from '../../services/applicationService';
 import { Application } from '../../types/application';
 import { useCompany } from '../../contexts/CompanyContext';
 import { SearchOutlined } from '@ant-design/icons';
 import { JobItem, GetJobListParams } from '../../types/job';
-import { Input, Select, Button, Spin, Pagination, Table } from 'antd';
+import { Input, Select, Button, Spin, Pagination, Table, Modal, Form, message } from 'antd';
 import { Link } from 'react-router-dom';
 
 const JobApplicationsPage: React.FC = () => {
@@ -32,6 +32,21 @@ const JobApplicationsPage: React.FC = () => {
   const [appPage, setAppPage] = useState(1);
   const [appTotalPages, setAppTotalPages] = useState(0);
 
+  // State cho modal cập nhật trạng thái
+  const [statusModalVisible, setStatusModalVisible] = useState(false);
+  const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
+  const [statusForm] = Form.useForm();
+  const [statusLoading, setStatusLoading] = useState(false);
+
+  // State cho modal thêm ghi chú
+  const [noteModalVisible, setNoteModalVisible] = useState(false);
+  const [noteForm] = Form.useForm();
+  const [noteLoading, setNoteLoading] = useState(false);
+
+  // State cho modal hủy ứng tuyển
+  const [cancelModalVisible, setCancelModalVisible] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
+
   // Cập nhật companyUuid khi companyData thay đổi
   useEffect(() => {
     if (companyData && companyData.uuid) {
@@ -57,6 +72,7 @@ const JobApplicationsPage: React.FC = () => {
       setTotalPages(response.data.pagination.totalPage);
     } catch (error) {
       console.error('Error fetching jobs:', error);
+      message.error('Không thể tải danh sách công việc');
     } finally {
       setLoading(false);
     }
@@ -77,6 +93,7 @@ const JobApplicationsPage: React.FC = () => {
       setAppTotalPages(response.data.pagination.totalPage);
     } catch (error) {
       console.error('Error fetching applications:', error);
+      message.error('Không thể tải danh sách ứng tuyển');
     } finally {
       setAppLoading(false);
     }
@@ -125,29 +142,133 @@ const JobApplicationsPage: React.FC = () => {
     }
   }, [selectedJob, appPage]);
 
-  // Xử lý thay đổi trạng thái ứng tuyển
-  const handleStatusChange = (applicationUuid: string, status: 'approved' | 'rejected') => {
-    // Đây là nơi để gọi API cập nhật trạng thái
-    console.log(`Cập nhật ứng tuyển ${applicationUuid} sang trạng thái ${status}`);
+  // Xử lý mở modal cập nhật trạng thái
+  const handleOpenStatusModal = (application: Application) => {
+    setSelectedApplication(application);
+    statusForm.setFieldsValue({ status: application.status });
+    setStatusModalVisible(true);
+  };
+
+  // Xử lý cập nhật trạng thái
+  const handleUpdateStatus = async (values: { status: string }) => {
+    if (!selectedApplication) return;
     
-    // Cập nhật UI tạm thời (trong thực tế bạn nên gọi API và fetch lại dữ liệu)
-    setApplications(prevApps => 
-      prevApps.map(app => 
-        app.uuid === applicationUuid ? { ...app, status } : app
-      )
-    );
+    setStatusLoading(true);
+    try {
+      const response = await updateStatus({
+        uuid: selectedApplication.uuid,
+        status: values.status
+      });
+      
+      if (response.data) {
+        message.success('Cập nhật trạng thái thành công');
+        setStatusModalVisible(false);
+        
+        // Cập nhật UI
+        setApplications(prevApps => 
+          prevApps.map(app => 
+            app.uuid === selectedApplication.uuid ? response.data : app
+          )
+        );
+      } else if (response.error) {
+        message.error(response.error.message || 'Không thể cập nhật trạng thái');
+      }
+    } catch (error) {
+      console.error('Error updating status:', error);
+      message.error('Có lỗi xảy ra khi cập nhật trạng thái');
+    } finally {
+      setStatusLoading(false);
+    }
+  };
+
+  // Xử lý mở modal thêm ghi chú
+  const handleOpenNoteModal = (application: Application) => {
+    setSelectedApplication(application);
+    noteForm.setFieldsValue({ note: application.note || '' });
+    setNoteModalVisible(true);
+  };
+
+  // Xử lý thêm ghi chú
+  const handleAddNote = async (values: { note: string }) => {
+    if (!selectedApplication) return;
+    
+    setNoteLoading(true);
+    try {
+      const response = await addNote({
+        uuid: selectedApplication.uuid,
+        note: values.note
+      });
+      
+      if (response.data) {
+        message.success('Thêm ghi chú thành công');
+        setNoteModalVisible(false);
+        
+        // Cập nhật UI
+        setApplications(prevApps => 
+          prevApps.map(app => 
+            app.uuid === selectedApplication.uuid ? response.data : app
+          )
+        );
+      } else if (response.error) {
+        message.error(response.error.message || 'Không thể thêm ghi chú');
+      }
+    } catch (error) {
+      console.error('Error adding note:', error);
+      message.error('Có lỗi xảy ra khi thêm ghi chú');
+    } finally {
+      setNoteLoading(false);
+    }
+  };
+
+  // Xử lý mở modal hủy ứng tuyển
+  const handleOpenCancelModal = (application: Application) => {
+    setSelectedApplication(application);
+    setCancelModalVisible(true);
+  };
+
+  // Xử lý hủy ứng tuyển
+  const handleCancelApply = async () => {
+    if (!selectedApplication) return;
+    
+    setCancelLoading(true);
+    try {
+      const response = await cancelApply({
+        application_uuid: selectedApplication.uuid
+      });
+      
+      if (response.data) {
+        message.success('Hủy ứng tuyển thành công');
+        setCancelModalVisible(false);
+        
+        // Cập nhật UI
+        setApplications(prevApps => 
+          prevApps.map(app => 
+            app.uuid === selectedApplication.uuid ? response.data : app
+          )
+        );
+      } else if (response.error) {
+        message.error(response.error.message || 'Không thể hủy ứng tuyển');
+      }
+    } catch (error) {
+      console.error('Error cancelling application:', error);
+      message.error('Có lỗi xảy ra khi hủy ứng tuyển');
+    } finally {
+      setCancelLoading(false);
+    }
   };
 
   // Hiển thị trạng thái với màu sắc phù hợp
   const renderStatus = (status: string) => {
-    const statusClasses = {
+    const statusClasses: Record<string, string> = {
       pending: 'bg-blue-100 text-blue-800',
-      approved: 'bg-green-100 text-green-800',
+      interviewing: 'bg-purple-100 text-purple-800',
+      accepted: 'bg-green-100 text-green-800',
       rejected: 'bg-red-100 text-red-800',
       cancelled: 'bg-gray-100 text-gray-800',
+      hired: 'bg-yellow-100 text-yellow-800',
     };
     
-    const statusClass = statusClasses[status as keyof typeof statusClasses] || statusClasses.pending;
+    const statusClass = statusClasses[status] || statusClasses.pending;
     
     return (
       <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusClass}`}>
@@ -160,7 +281,7 @@ const JobApplicationsPage: React.FC = () => {
   const jobColumns = [
     {
       title: 'Tiêu đề công việc',
-      dataIndex: 'title', // Lưu ý: Trong interface là 'title' không phải 'title'
+      dataIndex: 'title',
       key: 'title',
     },
     {
@@ -240,6 +361,13 @@ const JobApplicationsPage: React.FC = () => {
       render: (text: string) => text || 'Không có',
     },
     {
+      title: 'Ghi chú',
+      dataIndex: 'note',
+      key: 'note',
+      ellipsis: true,
+      render: (text: string) => text || 'Không có',
+    },
+    {
       title: 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
@@ -261,25 +389,28 @@ const JobApplicationsPage: React.FC = () => {
       title: 'Hành động',
       key: 'action',
       render: (text: string, record: Application) => (
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button
-            className={`${
-              record.status === 'approved' ? 'bg-green-500 text-white hover:bg-green-600' : 'bg-white hover:bg-gray-50'
-            } ${record.status === 'cancelled' ? 'opacity-50 cursor-not-allowed' : ''}`}
-            disabled={record.status === 'approved' || record.status === 'cancelled'}
-            onClick={() => handleStatusChange(record.uuid, 'approved')}
+            onClick={() => handleOpenStatusModal(record)}
+            className="bg-blue-500 text-white hover:bg-blue-600"
+            disabled={record.status === 'cancelled'}
           >
-            Chấp nhận
+            Cập nhật trạng thái
           </Button>
           <Button
-            className={`${
-              record.status === 'rejected' ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-white hover:bg-gray-50'
-            } ${record.status === 'cancelled' ? 'opacity-50 cursor-not-allowed' : ''}`}
-            disabled={record.status === 'rejected' || record.status === 'cancelled'}
-            onClick={() => handleStatusChange(record.uuid, 'rejected')}
-            danger={record.status !== 'rejected'}
+            onClick={() => handleOpenNoteModal(record)}
+            className="bg-green-500 text-white hover:bg-green-600"
+            disabled={record.status === 'cancelled'}
           >
-            Từ chối
+            Ghi chú
+          </Button>
+          <Button
+            onClick={() => handleOpenCancelModal(record)}
+            className="bg-red-500 text-white hover:bg-red-600"
+            disabled={record.status === 'cancelled'}
+            danger
+          >
+            Hủy
           </Button>
         </div>
       ),
@@ -401,6 +532,105 @@ const JobApplicationsPage: React.FC = () => {
             </Spin>
           </div>
         )}
+
+        {/* Modal cập nhật trạng thái */}
+        <Modal
+          title="Cập nhật trạng thái ứng tuyển"
+          open={statusModalVisible}
+          onCancel={() => setStatusModalVisible(false)}
+          footer={null}
+        >
+          <Form
+            form={statusForm}
+            layout="vertical"
+            onFinish={handleUpdateStatus}
+          >
+            <Form.Item
+              name="status"
+              label="Trạng thái"
+              rules={[{ required: true, message: 'Vui lòng chọn trạng thái' }]}
+            >
+              <Select>
+                <Select.Option value="pending">Đang chờ</Select.Option>
+                <Select.Option value="interviewing">Phỏng vấn</Select.Option>
+                <Select.Option value="accepted">Chấp nhận</Select.Option>
+                <Select.Option value="rejected">Từ chối</Select.Option>
+                <Select.Option value="hired">Đã tuyển</Select.Option>
+              </Select>
+            </Form.Item>
+            <div className="flex justify-end gap-2">
+              <Button onClick={() => setStatusModalVisible(false)}>
+                Hủy
+              </Button>
+              <Button 
+                type="primary" 
+                htmlType="submit" 
+                loading={statusLoading}
+                className="bg-blue-500 hover:bg-blue-600"
+              >
+                Cập nhật
+              </Button>
+            </div>
+          </Form>
+        </Modal>
+
+        {/* Modal thêm ghi chú */}
+        <Modal
+          title="Thêm ghi chú cho ứng tuyển"
+          open={noteModalVisible}
+          onCancel={() => setNoteModalVisible(false)}
+          footer={null}
+        >
+          <Form
+            form={noteForm}
+            layout="vertical"
+            onFinish={handleAddNote}
+          >
+            <Form.Item
+              name="note"
+              label="Ghi chú"
+              rules={[{ required: true, message: 'Vui lòng nhập ghi chú' }]}
+            >
+              <Input.TextArea rows={4} placeholder="Nhập ghi chú của bạn về ứng viên này..." />
+            </Form.Item>
+            <div className="flex justify-end gap-2">
+              <Button onClick={() => setNoteModalVisible(false)}>
+                Hủy
+              </Button>
+              <Button 
+                type="primary" 
+                htmlType="submit" 
+                loading={noteLoading}
+                className="bg-blue-500 hover:bg-blue-600"
+              >
+                Lưu ghi chú
+              </Button>
+            </div>
+          </Form>
+        </Modal>
+
+        {/* Modal hủy ứng tuyển */}
+        <Modal
+          title="Xác nhận hủy ứng tuyển"
+          open={cancelModalVisible}
+          onCancel={() => setCancelModalVisible(false)}
+          footer={null}
+        >
+          <p>Bạn có chắc chắn muốn hủy ứng tuyển này không? Hành động này không thể hoàn tác.</p>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button onClick={() => setCancelModalVisible(false)}>
+              Không
+            </Button>
+            <Button 
+              type="primary" 
+              danger 
+              onClick={handleCancelApply} 
+              loading={cancelLoading}
+            >
+              Có, hủy ứng tuyển
+            </Button>
+          </div>
+        </Modal>
       </div>
     </div>
   );
