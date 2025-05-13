@@ -5,6 +5,7 @@ import { StudentDetail } from '../../types/student';
 import { useNavigate } from 'react-router-dom';
 import { createConversation } from '../../services/conversationService';
 import { useCompany } from '../../contexts/CompanyContext';
+import ReportForm from '../../components/ReportForm';
 
 import {
   Spin,
@@ -16,7 +17,8 @@ import {
   Divider,
   Tag,
   Alert,
-  Empty
+  Empty,
+  Modal,
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -35,6 +37,9 @@ const StudentDetailPage: React.FC = () => {
   const [student, setStudent] = useState<StudentDetail | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [isReportModalVisible, setReportModalVisible] = useState(false);
+  const openReportModal = () => setReportModalVisible(true);
+  const closeReportModal = () => setReportModalVisible(false);
   const navigate = useNavigate();
   const { companyData } = useCompany();
   useEffect(() => {
@@ -189,9 +194,14 @@ const StudentDetailPage: React.FC = () => {
                 <h1 className="text-2xl font-bold text-gray-800 mb-2">
                   {student.fullname}
                 </h1>
-                <Button type="primary" onClick={handleMessage}>
-                  Nhắn tin
-                </Button>
+                <div className="space-x-2">
+                  <Button onClick={handleMessage} type="primary">
+                    Nhắn tin
+                  </Button>
+                  <Button onClick={openReportModal} danger>
+                    Báo cáo
+                  </Button>
+                </div>
               </div>
 
               <div className="flex flex-wrap items-center gap-4 text-gray-600 mb-4">
@@ -316,6 +326,19 @@ const StudentDetailPage: React.FC = () => {
             ) : (
               <Empty description="Không có thông tin về lịch trình khả dụng" />
             )}
+            <Modal
+              open={isReportModalVisible}
+              onCancel={closeReportModal}
+              footer={null}
+              title="Báo cáo sinh viên"
+              destroyOnClose
+            >
+              <ReportForm
+                targetUuid={student.uuid}
+                onClose={closeReportModal}
+              />
+            </Modal>
+
           </Card>
         </div>
       </div>
