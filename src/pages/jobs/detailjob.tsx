@@ -19,7 +19,8 @@ import {
   Modal, 
   Descriptions, 
   Badge,
-  Empty
+  Empty,
+  message
 } from 'antd';
 import { 
   ArrowLeftOutlined, 
@@ -34,7 +35,8 @@ import {
 } from '@ant-design/icons';
 import { JobItem, UpdateJob } from '../../types/job';
 import { updateJob, detailJob } from '../../services/jobService';
-
+import { deleteSchedule } from '../../services/scheduleService';
+import { deleteJobSKill } from '../../services/skillService';
 const { Title, Text, Paragraph } = Typography;
 const { Header, Content } = Layout;
 const { TextArea } = Input;
@@ -50,6 +52,11 @@ const JobDetailPage = () => {
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState<boolean>(false);
+  const [deleteScheduleModalVisible, setDeleteScheduleModalVisible] = useState<boolean>(false);
+  const [deleteSkillModalVisible, setDeleteSkillModalVisible] = useState<boolean>(false);
+  const [selectedScheduleUuid, setSelectedScheduleUuid] = useState<string | null>(null);
+  const [selectedSkillUuid, setSelectedSkillUuid] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState<boolean>(false);
 
   useEffect(() => {
     const getJobDetail = async () => {
@@ -166,6 +173,82 @@ const JobDetailPage = () => {
     if (job) {
       navigate(`/jobs/${job.uuid}/skills/add`);
     }
+  };
+
+  // Sửa lại hàm xử lý xóa lịch làm việc
+const handleDeleteSchedule = async () => {
+  if (!selectedScheduleUuid) return;
+  
+  setIsProcessing(true);
+  try {
+    // Chỉ truyền UUID của schedule
+    const response = await deleteSchedule(selectedScheduleUuid);
+    
+    if (response.error.code === 'success') {
+      message.success('Xóa lịch làm việc thành công');
+      
+      // Cập nhật lại dữ liệu công việc
+      if (uuid) {
+        const jobResponse = await detailJob(uuid);
+        if (jobResponse.error.code === 'success' && jobResponse.data) {
+          setJob(jobResponse.data);
+        }
+      }
+    } else {
+      message.error(response.error.message || 'Xóa lịch làm việc thất bại');
+    }
+  } catch (err) {
+    console.error('Error deleting schedule:', err);
+    message.error('Có lỗi xảy ra khi xóa lịch làm việc');
+  } finally {
+    setIsProcessing(false);
+    setDeleteScheduleModalVisible(false);
+    setSelectedScheduleUuid(null);
+  }
+};
+
+// Sửa lại hàm xử lý xóa kỹ năng
+const handleDeleteSkill = async () => {
+  if (!selectedSkillUuid) return;
+  
+  setIsProcessing(true);
+  try {
+    // Chỉ truyền UUID của jobSkill
+    const response = await deleteJobSKill(selectedSkillUuid);
+    
+    if (response.error.code === 'success') {
+      message.success('Xóa kỹ năng thành công');
+      
+      // Cập nhật lại dữ liệu công việc
+      if (uuid) {
+        const jobResponse = await detailJob(uuid);
+        if (jobResponse.error.code === 'success' && jobResponse.data) {
+          setJob(jobResponse.data);
+        }
+      }
+    } else {
+      message.error(response.error.message || 'Xóa kỹ năng thất bại');
+    }
+  } catch (err) {
+    console.error('Error deleting job skill:', err);
+    message.error('Có lỗi xảy ra khi xóa kỹ năng');
+  } finally {
+    setIsProcessing(false);
+    setDeleteSkillModalVisible(false);
+    setSelectedSkillUuid(null);
+  }
+};
+
+  // Hiển thị xác nhận xóa lịch làm việc
+  const showDeleteScheduleConfirm = (scheduleUuid: string) => {
+    setSelectedScheduleUuid(scheduleUuid);
+    setDeleteScheduleModalVisible(true);
+  };
+
+  // Hiển thị xác nhận xóa kỹ năng
+  const showDeleteSkillConfirm = (skillUuid: string) => {
+    setSelectedSkillUuid(skillUuid);
+    setDeleteSkillModalVisible(true);
   };
 
   // Format lương với đơn vị tiền tệ
@@ -585,7 +668,16 @@ const JobDetailPage = () => {
               {job.listSkill && job.listSkill.length > 0 ? (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                   {job.listSkill.map((jobSkill) => (
-                    <Tag key={jobSkill.uuid} color="blue" style={{ padding: '4px 8px', fontSize: 14 }}>
+                    <Tag 
+                      key={jobSkill.uuid} 
+                      color="blue" 
+                      style={{ padding: '4px 8px', fontSize: 14 }}
+                      closable
+                      onClose={(e) => {
+                        e.preventDefault();
+                        showDeleteSkillConfirm(jobSkill.uuid);
+                      }}
+                    >
                       {jobSkill.skill.name}
                     </Tag>
                   ))}
@@ -614,7 +706,17 @@ const JobDetailPage = () => {
                 <Row gutter={[16, 16]}>
                   {job.schedule.map((schedule) => (
                     <Col key={schedule.uuid} xs={24} sm={12} md={8}>
-                      <Card size="small" hoverable>
+                      <Card 
+                        size="small" 
+                        hoverable
+                        actions={[
+                          <DeleteOutlined 
+                            key="delete" 
+                            onClick={() => showDeleteScheduleConfirm(schedule.uuid)} 
+                            style={{ color: '#ff4d4f' }} 
+                          />
+                        ]}
+                      >
                         <div style={{ display: 'flex', alignItems: 'center' }}>
                           <ClockCircleOutlined style={{ fontSize: 18, color: '#1890ff', marginRight: 12 }} />
                           <div>
@@ -635,19 +737,40 @@ const JobDetailPage = () => {
           </>
         )}
         
-        {/* Modal xác nhận xóa */}
+        
+
+        {/* Modal xác nhận xóa lịch làm việc */}
         <Modal
-          title="Xác nhận xóa"
-          open={deleteModalVisible}
-          onOk={handleDelete}
-          onCancel={() => setDeleteModalVisible(false)}
+          title="Xác nhận xóa lịch làm việc"
+          open={deleteScheduleModalVisible}
+          onOk={handleDeleteSchedule}
+          onCancel={() => {
+            setDeleteScheduleModalVisible(false);
+            setSelectedScheduleUuid(null);
+          }}
           okText="Xóa"
           cancelText="Hủy"
-          okButtonProps={{ danger: true }}
+          okButtonProps={{ danger: true, loading: isProcessing }}
         >
-          <p>Bạn có chắc chắn muốn xóa công việc này? Hành động này không thể hoàn tác.</p>
+          <p>Bạn có chắc chắn muốn xóa lịch làm việc này? Hành động này không thể hoàn tác.</p>
         </Modal>
-      </Content>
+
+        {/* Modal xác nhận xóa kỹ năng */}
+        <Modal
+          title="Xác nhận xóa kỹ năng"
+          open={deleteSkillModalVisible}
+          onOk={handleDeleteSkill}
+          onCancel={() => {
+            setDeleteSkillModalVisible(false);
+            setSelectedSkillUuid(null);
+          }}
+          okText="Xóa"
+          cancelText="Hủy"
+          okButtonProps={{ danger: true, loading: isProcessing }}
+        >
+          <p>Bạn có chắc chắn muốn xóa kỹ năng này? Hành động này không thể hoàn tác.</p>
+        </Modal>
+        </Content>
     </Layout>
   );
 };
