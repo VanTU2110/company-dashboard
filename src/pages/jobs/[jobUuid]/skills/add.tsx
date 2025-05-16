@@ -121,7 +121,7 @@ export default function AddJobSkillPage() {
       
       // Tự động chuyển hướng sau 2 giây
       setTimeout(() => {
-        navigate(`/jobs/${jobUuid}/skills`);
+        navigate(`/jobs/${jobUuid}`);
       }, 2000);
       
     } catch (err: any) {

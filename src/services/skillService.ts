@@ -26,7 +26,7 @@ export const createJobSkill = async (data: JobSkillCreateInput):Promise<JobSkill
 }
 export const deleteJobSKill = async(uuid:string):Promise<deleteResponse> =>{
   try {
-    const response = await api.post<deleteResponse>(`/JobSkill/delete-jobskill`,{uuid})
+    const response = await api.post<deleteResponse>(`/JobSkill/delete-job-skill`,{uuid})
     return response.data;
   } catch (error) {
     console.error("Error delete job skill:", error);

@@ -20,7 +20,10 @@ import {
   Descriptions, 
   Badge,
   Empty,
-  message
+  message,
+  Table,  // Thêm Table để hiển thị sinh viên gợi ý
+  Avatar,  // Thêm Avatar để hiển thị ảnh sinh viên
+  Tooltip  // Thêm Tooltip để hiển thị thông tin bổ sung
 } from 'antd';
 import { 
   ArrowLeftOutlined, 
@@ -31,12 +34,19 @@ import {
   BankOutlined, 
   DollarOutlined, 
   ClockCircleOutlined, 
-  PlusOutlined 
+  PlusOutlined,
+  UserOutlined,  // Icon cho sinh viên
+  MailOutlined,  // Icon cho email
+  PhoneOutlined,  // Icon cho số điện thoại
+  TeamOutlined    // Icon cho danh sách sinh viên được gợi ý
 } from '@ant-design/icons';
-import { JobItem, UpdateJob } from '../../types/job';
+import { JobItem, UpdateJob, } from '../../types/job';
+import { SuggestStudentParams, ListStudentResponse } from '../../types/student';
 import { updateJob, detailJob } from '../../services/jobService';
+import { getStudentSuggest } from '../../services/studentService';
 import { deleteSchedule } from '../../services/scheduleService';
 import { deleteJobSKill } from '../../services/skillService';
+
 const { Title, Text, Paragraph } = Typography;
 const { Header, Content } = Layout;
 const { TextArea } = Input;
@@ -51,12 +61,20 @@ const JobDetailPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
-  const [deleteModalVisible, setDeleteModalVisible] = useState<boolean>(false);
   const [deleteScheduleModalVisible, setDeleteScheduleModalVisible] = useState<boolean>(false);
   const [deleteSkillModalVisible, setDeleteSkillModalVisible] = useState<boolean>(false);
   const [selectedScheduleUuid, setSelectedScheduleUuid] = useState<string | null>(null);
   const [selectedSkillUuid, setSelectedSkillUuid] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  
+  // Thêm state cho phần gợi ý sinh viên
+  const [suggestedStudents, setSuggestedStudents] = useState<any[]>([]);
+  const [suggestLoading, setSuggestLoading] = useState<boolean>(false);
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 5,
+    total: 0
+  });
 
   useEffect(() => {
     const getJobDetail = async () => {
@@ -92,6 +110,9 @@ const JobDetailPage = () => {
           requirements: jobData.requirements,
           companyUuid: jobData.company.uuid
         });
+        
+        // Sau khi lấy thông tin công việc, gọi API để lấy danh sách sinh viên được gợi ý
+        fetchSuggestedStudents(1, pagination.pageSize);
       } catch (err) {
         console.error('Error fetching job details:', err);
         setError('Có lỗi xảy ra khi tải thông tin công việc');
@@ -102,6 +123,43 @@ const JobDetailPage = () => {
   
     getJobDetail();
   }, [uuid, form]);
+
+  // Thêm hàm để lấy danh sách sinh viên được gợi ý
+  const fetchSuggestedStudents = async (page: number, pageSize: number) => {
+    if (!uuid) return;
+    
+    setSuggestLoading(true);
+    try {
+      const params: SuggestStudentParams = {
+        page: page,
+        pageSize: pageSize,
+        jobUuid: uuid
+      };
+      
+      const response = await getStudentSuggest(params);
+      
+      if (response.error.code === 'success' && response.data) {
+        setSuggestedStudents(response.data.items);
+        setPagination({
+          ...pagination,
+          current: page,
+          total: response.data.pagination.totalCount
+        });
+      } else {
+        message.error('Không thể tải danh sách sinh viên được gợi ý');
+      }
+    } catch (err) {
+      console.error('Error fetching suggested students:', err);
+      message.error('Có lỗi xảy ra khi tải danh sách sinh viên được gợi ý');
+    } finally {
+      setSuggestLoading(false);
+    }
+  };
+
+  // Hàm xử lý khi thay đổi trang trong bảng sinh viên được gợi ý
+  const handleTableChange = (pagination: any) => {
+    fetchSuggestedStudents(pagination.current, pagination.pageSize);
+  };
 
   const handleSave = async () => {
     try {
@@ -149,12 +207,6 @@ const JobDetailPage = () => {
     }
   };
 
-  const handleDelete = async () => {
-    setDeleteModalVisible(false);
-    // Logic xóa công việc sẽ được thêm ở đây
-    // Sau khi xóa thành công, chuyển về trang danh sách
-    navigate('/jobs');
-  };
 
   const handleUpdateJob = () => {
     if (job && job.company) {
@@ -174,112 +226,66 @@ const JobDetailPage = () => {
       navigate(`/jobs/${job.uuid}/skills/add`);
     }
   };
-
-  // Sửa lại hàm xử lý xóa lịch làm việc
+  // Thêm hàm xử lý xoá lịch trình
 const handleDeleteSchedule = async () => {
-  if (!selectedScheduleUuid) return;
-  
-  setIsProcessing(true);
-  try {
-    // Chỉ truyền UUID của schedule
-    const response = await deleteSchedule(selectedScheduleUuid);
-    
-    if (response.error.code === 'success') {
-      message.success('Xóa lịch làm việc thành công');
-      
-      // Cập nhật lại dữ liệu công việc
+  setDeleteScheduleModalVisible(false);
+  if (selectedScheduleUuid) {
+    setIsProcessing(true);
+    try {
+      await deleteSchedule(selectedScheduleUuid);
+      message.success('Xoá lịch trình thành công');
+      // Refresh job data
       if (uuid) {
-        const jobResponse = await detailJob(uuid);
-        if (jobResponse.error.code === 'success' && jobResponse.data) {
-          setJob(jobResponse.data);
+        const response = await detailJob(uuid);
+        if (response.error.code === 'success' && response.data) {
+          setJob(response.data);
         }
       }
-    } else {
-      message.error(response.error.message || 'Xóa lịch làm việc thất bại');
+    } catch (err) {
+      console.error('Error deleting schedule:', err);
+      message.error('Có lỗi xảy ra khi xoá lịch trình');
+    } finally {
+      setIsProcessing(false);
     }
-  } catch (err) {
-    console.error('Error deleting schedule:', err);
-    message.error('Có lỗi xảy ra khi xóa lịch làm việc');
-  } finally {
-    setIsProcessing(false);
-    setDeleteScheduleModalVisible(false);
-    setSelectedScheduleUuid(null);
   }
 };
 
-// Sửa lại hàm xử lý xóa kỹ năng
+// Thêm hàm xử lý xoá kỹ năng
 const handleDeleteSkill = async () => {
-  if (!selectedSkillUuid) return;
-  
-  setIsProcessing(true);
-  try {
-    // Chỉ truyền UUID của jobSkill
-    const response = await deleteJobSKill(selectedSkillUuid);
-    
-    if (response.error.code === 'success') {
-      message.success('Xóa kỹ năng thành công');
-      
-      // Cập nhật lại dữ liệu công việc
+  setDeleteSkillModalVisible(false);
+  if (selectedSkillUuid) {
+    setIsProcessing(true);
+    try {
+      await deleteJobSKill(selectedSkillUuid);
+      message.success('Xoá kỹ năng thành công');
+      // Refresh job data
       if (uuid) {
-        const jobResponse = await detailJob(uuid);
-        if (jobResponse.error.code === 'success' && jobResponse.data) {
-          setJob(jobResponse.data);
+        const response = await detailJob(uuid);
+        if (response.error.code === 'success' && response.data) {
+          setJob(response.data);
         }
       }
-    } else {
-      message.error(response.error.message || 'Xóa kỹ năng thất bại');
+    } catch (err) {
+      console.error('Error deleting skill:', err);
+      message.error('Có lỗi xảy ra khi xoá kỹ năng');
+    } finally {
+      setIsProcessing(false);
     }
-  } catch (err) {
-    console.error('Error deleting job skill:', err);
-    message.error('Có lỗi xảy ra khi xóa kỹ năng');
-  } finally {
-    setIsProcessing(false);
-    setDeleteSkillModalVisible(false);
-    setSelectedSkillUuid(null);
   }
 };
 
-  // Hiển thị xác nhận xóa lịch làm việc
-  const showDeleteScheduleConfirm = (scheduleUuid: string) => {
-    setSelectedScheduleUuid(scheduleUuid);
-    setDeleteScheduleModalVisible(true);
-  };
+// Hàm hiển thị loại lương
+const renderSalaryInfo = () => {
+  if (!job) return null;
 
-  // Hiển thị xác nhận xóa kỹ năng
-  const showDeleteSkillConfirm = (skillUuid: string) => {
-    setSelectedSkillUuid(skillUuid);
-    setDeleteSkillModalVisible(true);
-  };
-
-  // Format lương với đơn vị tiền tệ
-  const formatSalary = (job: JobItem) => {
-    if (job.salaryType === 'fixed') {
-      return `${job.salaryFixed.toLocaleString()} ${job.currency}`;
-    } else if (job.salaryType === 'range') {
-      return `${job.salaryMin.toLocaleString()} - ${job.salaryMax.toLocaleString()} ${job.currency}`;
-    }
+  if (job.salaryType === 'RANGE') {
+    return `${job.salaryMin?.toLocaleString()} - ${job.salaryMax?.toLocaleString()} ${job.currency}`;
+  } else if (job.salaryType === 'FIXED') {
+    return `${job.salaryFixed?.toLocaleString()} ${job.currency}`;
+  } else {
     return 'Thương lượng';
-  };
-
-  // Mapping cho hiển thị của JobType
-  const jobTypeDisplay: Record<string, string> = {
-    'fulltime': 'Toàn thời gian',
-    'parttime': 'Bán thời gian',
-    'internship': 'Thực tập',
-    'remote': 'Làm việc từ xa',
-    'on-site': 'Tại văn phòng',
-  };
-
-  // Format ngày tháng
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat('vi-VN', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    }).format(date);
-  };
-
+  }
+};
   // Format lịch làm việc
   const formatDayOfWeek = (day: string): string => {
     const daysMap: Record<string, string> = {
@@ -294,430 +300,517 @@ const handleDeleteSkill = async () => {
     return daysMap[day] || day;
   };
 
-  // Render các trạng thái khác nhau
-  if (loading) {
-    return (
-      <div style={{ height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-        <Spin size="large" tip="Đang tải..." />
-      </div>
-    );
-  }
-
-  if (error || !job) {
-    return (
-      <Result
-        status="404"
-        title="Không tìm thấy thông tin"
-        subTitle={error || 'Không tìm thấy thông tin công việc'}
-        extra={
-          <Button type="primary" icon={<ArrowLeftOutlined />} onClick={() => navigate('/jobs')}>
-            Quay lại danh sách công việc
-          </Button>
-        }
-      />
-    );
-  }
-
-  return (
-    <Layout className="site-layout" style={{ minHeight: '100vh', background: '#f0f2f5' }}>
-      <Content style={{ padding: '24px', margin: '0 auto', maxWidth: '1000px' }}>
-        {isEditing ? (
-          // Form chỉnh sửa - đặt toàn bộ form ở đây
-          <Form
-            form={form}
-            layout="vertical"
-            initialValues={{
-              title: job.title,
-              description: job.description,
-              jobType: job.jobType,
-              salaryType: job.salaryType,
-              salaryMin: job.salaryMin,
-              salaryMax: job.salaryMax,
-              salaryFixed: job.salaryFixed,
-              currency: job.currency,
-              requirements: job.requirements,
-              companyUuid: job.company.uuid
-            }}
-          >
-            <Card 
-              style={{ marginBottom: 24 }}
-              title={
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <Button 
-                    icon={<ArrowLeftOutlined />} 
-                    type="link" 
-                    onClick={() => navigate('/jobs')}
-                    style={{ marginRight: 16, padding: 0 }}
-                  >
-                    Quay lại danh sách công việc
-                  </Button>
-                </div>
-              }
-              extra={
-                <Space>
-                  <Button onClick={() => setIsEditing(false)}>
-                    Hủy
-                  </Button>
-                  <Button 
-                    type="primary" 
-                    icon={<SaveOutlined />} 
-                    onClick={handleSave}
-                    loading={isSaving}
-                  >
-                    Lưu thay đổi
-                  </Button>
-                </Space>
-              }
-            >
-              <Form.Item
-                name="title"
-                label="Tiêu đề công việc"
-                rules={[{ required: true, message: 'Vui lòng nhập tiêu đề công việc' }]}
-              >
-                <Input placeholder="Nhập tiêu đề công việc" />
-              </Form.Item>
-              
-              <Row gutter={24}>
-                <Col span={12}>
-                  <Form.Item
-                    name="jobType"
-                    label="Loại công việc"
-                    rules={[{ required: true, message: 'Vui lòng chọn loại công việc' }]}
-                  >
-                    <Select placeholder="Chọn loại công việc">
-                      <Option value="fulltime">Toàn thời gian</Option>
-                      <Option value="parttime">Bán thời gian</Option>
-                      <Option value="internship">Thực tập</Option>
-                      <Option value="remote">Làm việc từ xa</Option>
-                      <Option value="on-site">Tại văn phòng</Option>
-                    </Select>
-                  </Form.Item>
-                </Col>
-                <Col span={12}>
-                  <Form.Item
-                    name="salaryType"
-                    label="Loại lương"
-                    rules={[{ required: true, message: 'Vui lòng chọn loại lương' }]}
-                  >
-                    <Select placeholder="Chọn loại lương">
-                      <Option value="fixed">Cố định</Option>
-                      <Option value="range">Khoảng</Option>
-                    </Select>
-                  </Form.Item>
-                </Col>
-              </Row>
-              
-              <Form.Item
-                noStyle
-                shouldUpdate={(prevValues, currentValues) => prevValues.salaryType !== currentValues.salaryType}
-              >
-                {({ getFieldValue }) => 
-                  getFieldValue('salaryType') === 'fixed' ? (
-                    <Row gutter={24}>
-                      <Col span={18}>
-                        <Form.Item
-                          name="salaryFixed"
-                          label="Mức lương cố định"
-                          rules={[{ required: true, message: 'Vui lòng nhập mức lương' }]}
-                        >
-                          <InputNumber 
-                            style={{ width: '100%' }}
-                            formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                            parser={value => value!.replace(/\$\s?|(,*)/g, '')}
-                            placeholder="Nhập mức lương"
-                          />
-                        </Form.Item>
-                      </Col>
-                      <Col span={6}>
-                        <Form.Item
-                          name="currency"
-                          label="Đơn vị tiền"
-                          rules={[{ required: true, message: 'Vui lòng nhập đơn vị tiền' }]}
-                        >
-                          <Input placeholder="VND" />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-                  ) : (
-                    <Row gutter={24}>
-                      <Col span={8}>
-                        <Form.Item
-                          name="salaryMin"
-                          label="Lương tối thiểu"
-                          rules={[{ required: true, message: 'Vui lòng nhập lương tối thiểu' }]}
-                        >
-                          <InputNumber 
-                            style={{ width: '100%' }}
-                            formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                            parser={value => value!.replace(/\$\s?|(,*)/g, '')}
-                            placeholder="Lương tối thiểu"
-                          />
-                        </Form.Item>
-                      </Col>
-                      <Col span={8}>
-                        <Form.Item
-                          name="salaryMax"
-                          label="Lương tối đa"
-                          rules={[{ required: true, message: 'Vui lòng nhập lương tối đa' }]}
-                        >
-                          <InputNumber 
-                            style={{ width: '100%' }}
-                            formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                            parser={value => value!.replace(/\$\s?|(,*)/g, '')}
-                            placeholder="Lương tối đa"
-                          />
-                        </Form.Item>
-                      </Col>
-                      <Col span={8}>
-                        <Form.Item
-                          name="currency"
-                          label="Đơn vị tiền"
-                          rules={[{ required: true, message: 'Vui lòng nhập đơn vị tiền' }]}
-                        >
-                          <Input placeholder="VND" />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-                  )
-                }
-              </Form.Item>
-              
-              <Form.Item name="companyUuid" hidden>
-                <Input />
-              </Form.Item>
-            </Card>
-            
-            {/* Phần Mô tả công việc */}
-            <Card 
-              title="Mô tả công việc" 
-              style={{ marginBottom: 24 }}
-            >
-              <Form.Item
-                name="description"
-                rules={[{ required: true, message: 'Vui lòng nhập mô tả công việc' }]}
-              >
-                <TextArea 
-                  rows={6}
-                  placeholder="Nhập mô tả công việc"
-                />
-              </Form.Item>
-            </Card>
-            
-            {/* Phần Yêu cầu */}
-            <Card 
-              title="Yêu cầu" 
-              style={{ marginBottom: 24 }}
-            >
-              <Form.Item
-                name="requirements"
-                rules={[{ required: true, message: 'Vui lòng nhập yêu cầu công việc' }]}
-              >
-                <TextArea 
-                  rows={6}
-                  placeholder="Nhập yêu cầu công việc"
-                />
-              </Form.Item>
-            </Card>
-            
-            {/* Các phần thông tin khác không cần chỉnh sửa */}
-            <Card 
-              title="Kỹ năng yêu cầu" 
-              style={{ marginBottom: 24 }}
-            >
-              {job.listSkill && job.listSkill.length > 0 ? (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                  {job.listSkill.map((jobSkill) => (
-                    <Tag key={jobSkill.uuid} color="blue" style={{ padding: '4px 8px', fontSize: 14 }}>
-                      {jobSkill.skill.name}
-                    </Tag>
-                  ))}
-                </div>
-              ) : (
-                <Empty description="Chưa có kỹ năng nào được thêm vào." />
-              )}
-            </Card>
-            
-            <Card 
-              title="Lịch làm việc"
-            >
-              {job.schedule && job.schedule.length > 0 ? (
-                <Row gutter={[16, 16]}>
-                  {job.schedule.map((schedule) => (
-                    <Col key={schedule.uuid} xs={24} sm={12} md={8}>
-                      <Card size="small" hoverable>
-                        <div style={{ display: 'flex', alignItems: 'center' }}>
-                          <ClockCircleOutlined style={{ fontSize: 18, color: '#1890ff', marginRight: 12 }} />
-                          <div>
-                            <div style={{ fontWeight: 500 }}>{formatDayOfWeek(schedule.dayOfWeek)}</div>
-                            <div style={{ color: 'rgba(0, 0, 0, 0.65)' }}>
-                              {schedule.startTime.substring(0, 5)} - {schedule.endTime.substring(0, 5)}
-                            </div>
-                          </div>
-                        </div>
-                      </Card>
-                    </Col>
-                  ))}
-                </Row>
-              ) : (
-                <Empty description="Chưa có lịch làm việc nào được thêm vào." />
-              )}
-            </Card>
-          </Form>
-        ) : (
-          // Chế độ xem thông tin
-          <>
-            <Card 
-              style={{ marginBottom: 24 }}
-              title={
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <Button 
-                    icon={<ArrowLeftOutlined />} 
-                    type="link" 
-                    onClick={() => navigate('/jobs')}
-                    style={{ marginRight: 16, padding: 0 }}
-                  >
-                    Quay lại danh sách công việc
-                  </Button>
-                </div>
-              }
-              extra={
-                <Space>
-                  <Button 
-                    type="primary" 
-                    icon={<EditOutlined />} 
-                    onClick={handleUpdateJob}
-                  >
-                    Cập nhật công việc
-                  </Button>
-                  <Button 
-                    danger 
-                    icon={<DeleteOutlined />} 
-                    onClick={() => setDeleteModalVisible(true)}
-                  >
-                    Xóa
-                  </Button>
-                </Space>
-              }
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-                <div>
-                  <Title level={3} style={{ marginBottom: 8 }}>{job.title}</Title>
-                  <Space direction="vertical" size={2}>
-                    <Text>
-                      <BankOutlined style={{ marginRight: 8 }} />
-                      <Text strong>{job.company.name}</Text>
-                    </Text>
-                    <Text>
-                      <DollarOutlined style={{ marginRight: 8 }} />
-                      {formatSalary(job)}
-                    </Text>
-                    <Text>
-                      <CalendarOutlined style={{ marginRight: 8 }} />
-                      Ngày tạo: {formatDate(job.created)}
-                      {job.updated && (
-                        <Text style={{ marginLeft: 16 }}>Cập nhật lần cuối: {formatDate(job.updated)}</Text>
-                      )}
-                    </Text>
-                  </Space>
-                </div>
-                <Badge.Ribbon 
-                  text={jobTypeDisplay[job.jobType] || job.jobType} 
-                  color="blue"
+// Thiết lập cột cho bảng sinh viên được gợi ý
+const studentColumns = [
+  {
+    title: 'Sinh viên',
+    dataIndex: 'fullname',
+    key: 'fullname',
+    render: (text: string, record: any) => (
+      <Space>
+        <Avatar 
+          src={record.avatar || undefined} 
+          icon={!record.avatar && <UserOutlined />}
+          size={48}
+        />
+        <div>
+          <Text strong>{text}</Text>
+          <div>
+            <Text type="secondary">{record.major || 'Chưa cập nhật ngành học'}</Text>
+          </div>
+        </div>
+      </Space>
+    ),
+  },
+  {
+    title: 'Thông tin liên hệ',
+    dataIndex: 'phoneNumber',
+    key: 'phoneNumber',
+    render: (_: string, record: any) => (
+      <Space direction="vertical" size="small">
+        <Space>
+          <PhoneOutlined />
+          <Text>{record.phoneNumber || 'Chưa cập nhật'}</Text>
+        </Space>
+      </Space>
+    ),
+  },
+  {
+    title: 'Kỹ năng phù hợp',
+    dataIndex: 'listSkill',
+    key: 'listSkill',
+    render: (_: any, record: any) => {
+      const matchedSkills = record.listSkill || [];
+      if (!matchedSkills.length) {
+        return <Text type="secondary">Chưa có kỹ năng phù hợp</Text>;
+      }
+  
+      // Nhóm mỗi 2 kỹ năng thành 1 dòng
+      const rows = [];
+      for (let i = 0; i < matchedSkills.length && i < 5; i += 2) {
+        rows.push(matchedSkills.slice(i, i + 2));
+      }
+  
+      return (
+        <div>
+          {rows.map((row: any[], rowIndex: number) => (
+            <div key={rowIndex} style={{ display: 'flex', gap: '8px', marginBottom: 4 }}>
+              {row.map((item: any, index: number) => (
+                <Tag
+                  key={item.uuid || `${rowIndex}-${index}`}
+                  color={
+                    item.proficiency === 'advanced'
+                      ? 'green'
+                      : item.proficiency === 'intermediate'
+                      ? 'blue'
+                      : 'default'
+                  }
                 >
-                  <div style={{ width: 120, height: 70 }}></div>
-                </Badge.Ribbon>
-              </div>
-            </Card>
-            
-            {/* Phần Mô tả công việc */}
-            <Card 
-              title="Mô tả công việc" 
-              style={{ marginBottom: 24 }}
-            >
-              <Paragraph style={{ whiteSpace: 'pre-line' }}>
-                {job.description}
-              </Paragraph>
-            </Card>
-            
-            {/* Phần Yêu cầu */}
-            <Card 
-              title="Yêu cầu" 
-              style={{ marginBottom: 24 }}
-            >
-              <Paragraph style={{ whiteSpace: 'pre-line' }}>
-                {job.requirements}
-              </Paragraph>
-            </Card>
-            
-            {/* Phần Kỹ năng yêu cầu */}
-            <Card 
-              title={
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                  <span>Kỹ năng yêu cầu</span>
-                  <Button 
-                    type="primary" 
-                    icon={<PlusOutlined />} 
-                    onClick={handleAddSkill}
+                  {item.skill?.name} ({item.proficiency})
+                </Tag>
+              ))}
+            </div>
+          ))}
+  
+          {matchedSkills.length > 5 && (
+            <Tooltip title={matchedSkills.slice(5).map((s: any) => `${s.skill?.name} (${s.proficiency})`).join(', ')}>
+              <Tag>+{matchedSkills.length - 5}</Tag>
+            </Tooltip>
+          )}
+        </div>
+      );
+    },
+  },
+  
+  
+  {
+    title: 'Độ phù hợp',
+    dataIndex: 'matchPercentage',
+    key: 'matchPercentage',
+    render: (match: number) => {
+      let color = 'green';
+      if (match < 60) color = 'orange';
+      if (match < 40) color = 'red';
+      
+      return (
+        <Tag color={color} style={{ fontWeight: 'bold', fontSize: '14px' }}>
+          {match}%
+        </Tag>
+      );
+    },
+    sorter: (a: any, b: any) => (a.matchPercentage || 0) - (b.matchPercentage || 0),
+    defaultSortOrder: 'descend',
+  },
+  {
+    title: 'Hành động',
+    key: 'action',
+    render: (_: any, record: any) => (
+      <Space size="middle">
+        <Button 
+          type="primary" 
+          size="small"
+          onClick={() => navigate(`/students/${record.studentUuid}`)}
+        >
+          Xem chi tiết
+        </Button>
+        <Button 
+          size="small"
+          onClick={() => {
+            // Thêm logic gửi email mời ứng tuyển ở đây
+            message.info(`Đã gửi lời mời tới ${record.name}`);
+          }}
+        >
+          Gửi lời mời
+        </Button>
+      </Space>
+    ),
+  },
+];
+
+
+
+// Render giao diện chính
+return (
+  <Layout className="job-detail-page">
+    <Header className="site-layout-background" style={{ padding: '0 24px', background: '#fff', boxShadow: '0 1px 4px rgba(0,21,41,.08)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '100%' }}>
+        <Space>
+          <Button 
+            type="text" 
+            icon={<ArrowLeftOutlined />} 
+            onClick={() => navigate('/jobs')}
+          >
+            Quay lại danh sách
+          </Button>
+          <Divider type="vertical" />
+          <Title level={4} style={{ margin: 0 }}>Chi tiết công việc</Title>
+        </Space>
+        <Space>
+          {!isEditing && (
+            <>
+              <Button 
+                type="primary" 
+                icon={<EditOutlined />} 
+                onClick={handleUpdateJob}
+                disabled={loading || !job}
+              >
+                Chỉnh sửa
+              </Button>
+
+            </>
+          )}
+          {isEditing && (
+            <>
+              <Button 
+                type="primary" 
+                icon={<SaveOutlined />} 
+                onClick={handleSave}
+                loading={isSaving}
+              >
+                Lưu thay đổi
+              </Button>
+              <Button 
+                onClick={() => setIsEditing(false)}
+                disabled={isSaving}
+              >
+                Hủy
+              </Button>
+            </>
+          )}
+        </Space>
+      </div>
+    </Header>
+
+    <Content style={{ padding: '24px', background: '#f0f2f5', minHeight: 'calc(100vh - 64px)' }}>
+      {loading ? (
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '300px' }}>
+          <Spin size="large" tip="Đang tải thông tin..." />
+        </div>
+      ) : error ? (
+        <Result
+          status="error"
+          title="Không thể tải thông tin công việc"
+          subTitle={error}
+          extra={[
+            <Button type="primary" key="back" onClick={() => navigate('/jobs')}>
+              Quay lại danh sách công việc
+            </Button>
+          ]}
+        />
+      ) : job ? (
+        <div className="job-content">
+          {/* Phần thông tin công việc */}
+          <Row gutter={[24, 24]}>
+            <Col xs={24} lg={16}>
+              <Card 
+                title={
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Thông tin công việc</span>
+                  </div>
+                }
+                bordered={false}
+                className="card-shadow"
+                style={{ 
+                  borderRadius: '8px', 
+                  boxShadow: '0 1px 2px -2px rgba(0, 0, 0, 0.16), 0 3px 6px 0 rgba(0, 0, 0, 0.12), 0 5px 12px 4px rgba(0, 0, 0, 0.09)',
+                }}
+              >
+                {isEditing ? (
+                  <Form
+                    form={form}
+                    layout="vertical"
+                    initialValues={{
+                      title: job.title,
+                      description: job.description,
+                      jobType: job.jobType,
+                      salaryType: job.salaryType,
+                      salaryMin: job.salaryMin,
+                      salaryMax: job.salaryMax,
+                      salaryFixed: job.salaryFixed,
+                      currency: job.currency,
+                      requirements: job.requirements,
+                      companyUuid: job.company?.uuid
+                    }}
                   >
-                    Thêm mới kĩ năng
-                  </Button>
-                </div>
-              }
-              style={{ marginBottom: 24 }}
-            >
-              {job.listSkill && job.listSkill.length > 0 ? (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                  {job.listSkill.map((jobSkill) => (
-                    <Tag 
-                      key={jobSkill.uuid} 
-                      color="blue" 
-                      style={{ padding: '4px 8px', fontSize: 14 }}
-                      closable
-                      onClose={(e) => {
-                        e.preventDefault();
-                        showDeleteSkillConfirm(jobSkill.uuid);
+                    <Form.Item
+                      name="title"
+                      label="Tiêu đề công việc"
+                      rules={[{ required: true, message: 'Vui lòng nhập tiêu đề công việc' }]}
+                    >
+                      <Input placeholder="Nhập tiêu đề công việc" />
+                    </Form.Item>
+                    
+                    <Form.Item
+                      name="jobType"
+                      label="Loại công việc"
+                      rules={[{ required: true, message: 'Vui lòng chọn loại công việc' }]}
+                    >
+                      <Select placeholder="Chọn loại công việc">
+                        <Option value="FULL_TIME">Toàn thời gian</Option>
+                        <Option value="PART_TIME">Bán thời gian</Option>
+                        <Option value="CONTRACT">Hợp đồng</Option>
+                        <Option value="INTERNSHIP">Thực tập</Option>
+                        <Option value="TEMPORARY">Tạm thời</Option>
+                      </Select>
+                    </Form.Item>
+                    
+                    <Form.Item
+                      name="salaryType"
+                      label="Loại lương"
+                      rules={[{ required: true, message: 'Vui lòng chọn loại lương' }]}
+                    >
+                      <Select 
+                        placeholder="Chọn loại lương"
+                        onChange={(value) => {
+                          // Xóa dữ liệu lương không liên quan khi thay đổi loại lương
+                          if (value === 'RANGE') {
+                            form.setFieldsValue({ salaryFixed: undefined });
+                          } else if (value === 'FIXED') {
+                            form.setFieldsValue({ salaryMin: undefined, salaryMax: undefined });
+                          } else {
+                            form.setFieldsValue({ 
+                              salaryMin: undefined, 
+                              salaryMax: undefined,
+                              salaryFixed: undefined
+                            });
+                          }
+                        }}
+                      >
+                        <Option value="RANGE">Khoảng lương</Option>
+                        <Option value="FIXED">Lương cố định</Option>
+                        <Option value="NEGOTIABLE">Thương lượng</Option>
+                      </Select>
+                    </Form.Item>
+                    
+                    {form.getFieldValue('salaryType') === 'RANGE' && (
+                      <Row gutter={16}>
+                        <Col span={12}>
+                          <Form.Item
+                            name="salaryMin"
+                            label="Lương tối thiểu"
+                            rules={[{ required: true, message: 'Vui lòng nhập lương tối thiểu' }]}
+                          >
+                            <InputNumber 
+                              style={{ width: '100%' }} 
+                              placeholder="Lương tối thiểu"
+                              formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                              parser={value => value!.replace(/\$\s?|(,*)/g, '')}
+                            />
+                          </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                          <Form.Item
+                            name="salaryMax"
+                            label="Lương tối đa"
+                            rules={[
+                              { required: true, message: 'Vui lòng nhập lương tối đa' },
+                              ({ getFieldValue }) => ({
+                                validator(_, value) {
+                                  if (!value || getFieldValue('salaryMin') <= value) {
+                                    return Promise.resolve();
+                                  }
+                                  return Promise.reject(new Error('Lương tối đa phải lớn hơn lương tối thiểu'));
+                                },
+                              }),
+                            ]}
+                          >
+                            <InputNumber 
+                              style={{ width: '100%' }} 
+                              placeholder="Lương tối đa"
+                              formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                              parser={value => value!.replace(/\$\s?|(,*)/g, '')}
+                            />
+                          </Form.Item>
+                        </Col>
+                      </Row>
+                    )}
+                    
+                    {form.getFieldValue('salaryType') === 'FIXED' && (
+                      <Form.Item
+                        name="salaryFixed"
+                        label="Lương cố định"
+                        rules={[{ required: true, message: 'Vui lòng nhập lương cố định' }]}
+                      >
+                        <InputNumber 
+                          style={{ width: '100%' }} 
+                          placeholder="Lương cố định"
+                          formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                          parser={value => value!.replace(/\$\s?|(,*)/g, '')}
+                        />
+                      </Form.Item>
+                    )}
+                    
+                    {(form.getFieldValue('salaryType') === 'RANGE' || form.getFieldValue('salaryType') === 'FIXED') && (
+                      <Form.Item
+                        name="currency"
+                        label="Đơn vị tiền tệ"
+                        rules={[{ required: true, message: 'Vui lòng chọn đơn vị tiền tệ' }]}
+                      >
+                        <Select placeholder="Chọn đơn vị tiền tệ">
+                          <Option value="VND">VND</Option>
+                          <Option value="USD">USD</Option>
+                          <Option value="EUR">EUR</Option>
+                        </Select>
+                      </Form.Item>
+                    )}
+                    
+                    <Form.Item
+                      name="description"
+                      label="Mô tả công việc"
+                      rules={[{ required: true, message: 'Vui lòng nhập mô tả công việc' }]}
+                    >
+                      <TextArea rows={6} placeholder="Nhập mô tả chi tiết về công việc" />
+                    </Form.Item>
+                    
+                    <Form.Item
+                      name="requirements"
+                      label="Yêu cầu công việc"
+                      rules={[{ required: true, message: 'Vui lòng nhập yêu cầu công việc' }]}
+                    >
+                      <TextArea rows={6} placeholder="Nhập yêu cầu chi tiết về công việc" />
+                    </Form.Item>
+                  </Form>
+                ) : (
+                  <>
+                    <div className="job-info-section">
+                      <Title level={3} style={{ marginTop: 0 }}>{job.title}</Title>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', marginBottom: '24px', alignItems: 'center' }}>
+                        <Space>
+                          <Tag color="blue" icon={<BankOutlined />} style={{ padding: '2px 10px', fontSize: '14px' }}>
+                            {job.company?.name || 'Công ty chưa cập nhật'}
+                          </Tag>
+                        </Space>
+                        <Space>
+                          <Tag color="green" icon={<ClockCircleOutlined />} style={{ padding: '2px 10px', fontSize: '14px' }}>
+                            {job.jobType === 'FULL_TIME' ? 'Toàn thời gian' : 
+                             job.jobType === 'PART_TIME' ? 'Bán thời gian' : 
+                             job.jobType === 'CONTRACT' ? 'Hợp đồng' : 
+                             job.jobType === 'INTERNSHIP' ? 'Thực tập' : 
+                             job.jobType === 'TEMPORARY' ? 'Tạm thời' : job.jobType}
+                          </Tag>
+                        </Space>
+                        <Space>
+                          <Tag color="orange" icon={<DollarOutlined />} style={{ padding: '2px 10px', fontSize: '14px' }}>
+                            {renderSalaryInfo()}
+                          </Tag>
+                        </Space>
+                        <Space>
+                          <Tag color="purple" icon={<CalendarOutlined />} style={{ padding: '2px 10px', fontSize: '14px' }}>
+                            Ngày đăng: {new Date(job.created).toLocaleDateString('vi-VN')}
+                          </Tag>
+                        </Space>
+                      </div>
+                      
+                      <Divider orientation="left">Mô tả công việc</Divider>
+                      <Paragraph style={{ whiteSpace: 'pre-line', fontSize: '15px' }}>
+                        {job.description || 'Chưa có mô tả chi tiết.'}
+                      </Paragraph>
+                      
+                      <Divider orientation="left">Yêu cầu công việc</Divider>
+                      <Paragraph style={{ whiteSpace: 'pre-line', fontSize: '15px' }}>
+                        {job.requirements || 'Chưa có yêu cầu chi tiết.'}
+                      </Paragraph>
+                    </div>
+                  </>
+                )}
+              </Card>
+            </Col>
+            
+            <Col xs={24} lg={8}>
+             
+              
+              {/* Kỹ năng yêu cầu */}
+              <Card 
+                title={
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Kỹ năng yêu cầu</span>
+                    <Button 
+                      type="primary" 
+                      size="small" 
+                      icon={<PlusOutlined />}
+                      onClick={handleAddSkill}
+                    >
+                      Thêm kỹ năng
+                    </Button>
+                  </div>
+                }
+                bordered={false}
+                className="card-shadow"
+                style={{ 
+                  marginBottom: '24px',
+                  borderRadius: '8px',
+                  boxShadow: '0 1px 2px -2px rgba(0, 0, 0, 0.16), 0 3px 6px 0 rgba(0, 0, 0, 0.12), 0 5px 12px 4px rgba(0, 0, 0, 0.09)',
+                }}
+              >
+                {job.listSkill && job.listSkill.length > 0 ? (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                    {job.listSkill.map((skill) => (
+                      <Tag 
+                        key={skill.uuid} 
+                        color="blue"
+                        style={{ fontSize: '14px', padding: '4px 8px', margin: '4px' }}
+                        closable
+                        onClose={(e) => {
+                          e.preventDefault();
+                          setSelectedSkillUuid(skill.uuid);
+                          setDeleteSkillModalVisible(true);
+                        }}
+                      >
+                        {skill.skill.name}
+                      </Tag>
+                    ))}
+                  </div>
+                ) : (
+                  <Empty description="Chưa có kỹ năng yêu cầu" />
+                )}
+              </Card>
+              
+              <Card 
+                title={
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Lịch trình công việc </span>
+                    <Button 
+                      type="primary" 
+                      size="small" 
+                      icon={<PlusOutlined />}
+                      onClick={handleAddSchedule}
+                    >
+                      Thêm lịch trình
+                    </Button>
+                  </div>
+                }
+                bordered={false}
+                className="card-shadow"
+                style={{ 
+                  borderRadius: '8px',
+                  boxShadow: '0 1px 2px -2px rgba(0, 0, 0, 0.16), 0 3px 6px 0 rgba(0, 0, 0, 0.12), 0 5px 12px 4px rgba(0, 0, 0, 0.09)',
+                }}
+              >
+                {job.schedule && job.schedule.length > 0 ? (
+                  job.schedule.map((schedule) => (
+                    <div 
+                      key={schedule.uuid} 
+                      style={{ 
+                        border: '1px solid #f0f0f0', 
+                        borderRadius: '8px',
+                        padding: '12px',
+                        marginBottom: '12px',
+                        position: 'relative'
                       }}
                     >
-                      {jobSkill.skill.name}
-                    </Tag>
-                  ))}
-                </div>
-              ) : (
-                <Empty description="Chưa có kỹ năng nào được thêm vào." />
-              )}
-            </Card>
-            
-            {/* Phần Lịch làm việc */}
-            <Card 
-              title={
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                  <span>Lịch làm việc</span>
-                  <Button 
-                    type="primary" 
-                    icon={<PlusOutlined />} 
-                    onClick={handleAddSchedule}
-                  >
-                    Thêm mới lịch làm việc
-                  </Button>
-                </div>
-              }
-            >
-              {job.schedule && job.schedule.length > 0 ? (
-                <Row gutter={[16, 16]}>
-                  {job.schedule.map((schedule) => (
-                    <Col key={schedule.uuid} xs={24} sm={12} md={8}>
-                      <Card 
-                        size="small" 
-                        hoverable
-                        actions={[
-                          <DeleteOutlined 
-                            key="delete" 
-                            onClick={() => showDeleteScheduleConfirm(schedule.uuid)} 
-                            style={{ color: '#ff4d4f' }} 
-                          />
-                        ]}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <div style={{ position: 'absolute', top: '12px', right: '12px' }}>
+                        <Button 
+                          type="text" 
+                          danger 
+                          icon={<DeleteOutlined />} 
+                          size="small"
+                          onClick={() => {
+                            setSelectedScheduleUuid(schedule.uuid);
+                            setDeleteScheduleModalVisible(true);
+                          }}
+                        />
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center' }}>
                           <ClockCircleOutlined style={{ fontSize: 18, color: '#1890ff', marginRight: 12 }} />
                           <div>
                             <div style={{ fontWeight: 500 }}>{formatDayOfWeek(schedule.dayOfWeek)}</div>
@@ -726,21 +819,58 @@ const handleDeleteSkill = async () => {
                             </div>
                           </div>
                         </div>
-                      </Card>
-                    </Col>
-                  ))}
-                </Row>
-              ) : (
-                <Empty description="Chưa có lịch làm việc nào được thêm vào." />
-              )}
-            </Card>
-          </>
-        )}
-        
-        
-
-        {/* Modal xác nhận xóa lịch làm việc */}
-        <Modal
+                    </div>
+                  ))
+                ) : (
+                  <Empty description="Công việc chưa có lịch làm việc" />
+                )}
+              </Card>
+            </Col>
+          </Row>
+          
+          {/* Phần sinh viên được gợi ý */}
+          <Card 
+            title={
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Space>
+                  <TeamOutlined style={{ fontSize: '18px' }} />
+                  <span>Sinh viên phù hợp với công việc này</span>
+                </Space>
+                <Badge count={pagination.total} overflowCount={999} />
+              </div>
+            }
+            bordered={false}
+            className="card-shadow"
+            style={{ 
+              marginTop: '24px', 
+              borderRadius: '8px',
+              boxShadow: '0 1px 2px -2px rgba(0, 0, 0, 0.16), 0 3px 6px 0 rgba(0, 0, 0, 0.12), 0 5px 12px 4px rgba(0, 0, 0, 0.09)',
+            }}  
+          >
+            <Table
+              columns={studentColumns}
+              dataSource={suggestedStudents}
+              rowKey="uuid"
+              loading={suggestLoading}
+              pagination={{
+                current: pagination.current,
+                pageSize: pagination.pageSize,
+                total: pagination.total,
+                showSizeChanger: true,
+                showTotal: (total) => `Tổng ${total} sinh viên`,
+              }}
+              onChange={handleTableChange}
+              scroll={{ x: true }}
+              bordered={false}
+            />
+          </Card>
+        </div>
+      ) : (
+        <Empty description="Không tìm thấy thông tin công việc" />
+      )}
+    </Content>
+    {/* Modal xác nhận xóa lịch làm việc */}
+    <Modal
           title="Xác nhận xóa lịch làm việc"
           open={deleteScheduleModalVisible}
           onOk={handleDeleteSchedule}
@@ -770,7 +900,6 @@ const handleDeleteSkill = async () => {
         >
           <p>Bạn có chắc chắn muốn xóa kỹ năng này? Hành động này không thể hoàn tác.</p>
         </Modal>
-        </Content>
     </Layout>
   );
 };

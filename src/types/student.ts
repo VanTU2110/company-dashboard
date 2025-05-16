@@ -1,6 +1,6 @@
 import { Location } from "./location";
 import { Skill } from "./job";
-
+import { Pagination } from "./job";
 export interface Availability {
     uuid: string;
     studentUuid: string;
@@ -10,6 +10,7 @@ export interface Availability {
   }
   export interface StudentSkill {
     uuid: string;
+    name:string
     student_Uuid: string;
     skill: Skill;
     proficiency: string; // e.g., "Beginner", "Intermediate", "Advanced"
@@ -35,4 +36,22 @@ export interface Availability {
       message: string;
     };
     data: StudentDetail;
+  }
+  export interface ListStudentResponse{
+    data: {
+      items: StudentDetail[];
+      pagination: {
+        totalCount: number;
+        totalPage: number;
+      };
+    };
+    error: {
+      code: string;
+      message: string;
+    };
+  };
+  export interface SuggestStudentParams{
+    page: number;
+    pageSize: number;
+    jobUuid: string;
   }
