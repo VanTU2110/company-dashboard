@@ -18,6 +18,8 @@ import StudentDetailPage from './pages/student/studentdetail';
 import ConversationsPage from './pages/chat/conversations';
 import ChatPage from './pages/chat/chat';
 import { ChatProvider } from './contexts/ChatContext';
+import ListWarning from './pages/warning';
+import OTPVerificationPage from './pages/auth/verifyotp';
 
 // Sử dụng biến môi trường hoặc cấu hình động cho URL hub
 // Có thể sử dụng import.meta.env.VITE_SIGNALR_HUB_URL nếu dùng Vite
@@ -60,6 +62,8 @@ const App = () => {
         <Route path="/company/edit-company/:uuuuid" element={<EditCompany />} />
         <Route path="/conversations" element={<ConversationsPage />} />
         <Route path="/conversations/:conversationUuid" element={<ChatPage />} />
+        <Route path="/warning" element={<ListWarning/>} />
+        <Route path="/verify-otp" element={<OTPVerificationPage />} />
       </Route>
     </Routes>
   );

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { 
   Layout, 
   Card, 
@@ -41,11 +41,12 @@ import {
   TeamOutlined    // Icon cho danh sách sinh viên được gợi ý
 } from '@ant-design/icons';
 import { JobItem, UpdateJob, } from '../../types/job';
-import { SuggestStudentParams, ListStudentResponse } from '../../types/student';
+import { SuggestStudentParams, ListStudentResponse,StudentDetail } from '../../types/student';
 import { updateJob, detailJob } from '../../services/jobService';
 import { getStudentSuggest } from '../../services/studentService';
 import { deleteSchedule } from '../../services/scheduleService';
 import { deleteJobSKill } from '../../services/skillService';
+import { createConversation } from '../../services/conversationService';
 
 const { Title, Text, Paragraph } = Typography;
 const { Header, Content } = Layout;
@@ -286,6 +287,24 @@ const renderSalaryInfo = () => {
     return 'Thương lượng';
   }
 };
+const handleMessage = async (student: StudentDetail) => {
+  const companyUuid = job?.company?.uuid;
+  if (!student || !companyUuid) return;
+
+  try {
+    const response = await createConversation({
+      studentUuid: student.uuid,
+      companyUuid: companyUuid, // đảm bảo luôn là string
+    });
+
+    navigate(`/conversations/${response.data.uuid}`);
+  } catch (err) {
+    console.error('Lỗi khi tạo cuộc trò chuyện:', err);
+    message.error('Không thể tạo cuộc trò chuyện.');
+  }
+};
+
+
   // Format lịch làm việc
   const formatDayOfWeek = (day: string): string => {
     const daysMap: Record<string, string> = {
@@ -384,44 +403,40 @@ const studentColumns = [
   
   
   {
-    title: 'Độ phù hợp',
-    dataIndex: 'matchPercentage',
-    key: 'matchPercentage',
-    render: (match: number) => {
-      let color = 'green';
-      if (match < 60) color = 'orange';
-      if (match < 40) color = 'red';
-      
-      return (
-        <Tag color={color} style={{ fontWeight: 'bold', fontSize: '14px' }}>
-          {match}%
-        </Tag>
-      );
-    },
-    sorter: (a: any, b: any) => (a.matchPercentage || 0) - (b.matchPercentage || 0),
-    defaultSortOrder: 'descend',
+    title: 'Lịch rảnh',
+    dataIndex: 'availabilities',
+    key: 'availabilities',
+    render: (schedules: { dayOfWeek: string; startTime: string; endTime: string }[]) => (
+      <div className="flex flex-wrap gap-2">
+        {schedules.map((schedule, index) => (
+          <Tag
+            key={index}
+            color="blue"
+            className="!rounded-xl !px-3 !py-1 !text-sm !font-medium !bg-blue-100 !text-blue-700"
+          >
+            {formatDayOfWeek(schedule.dayOfWeek)}: {schedule.startTime.slice(0, 5)} - {schedule.endTime.slice(0, 5)}
+          </Tag>
+        ))}
+      </div>
+    ),
   },
   {
     title: 'Hành động',
     key: 'action',
     render: (_: any, record: any) => (
       <Space size="middle">
-        <Button 
-          type="primary" 
-          size="small"
-          onClick={() => navigate(`/students/${record.studentUuid}`)}
-        >
-          Xem chi tiết
-        </Button>
-        <Button 
-          size="small"
-          onClick={() => {
-            // Thêm logic gửi email mời ứng tuyển ở đây
-            message.info(`Đã gửi lời mời tới ${record.name}`);
-          }}
-        >
-          Gửi lời mời
-        </Button>
+        <Link to={`/student-detail/${record.uuid}`}>
+          <Button type="primary" size="small">
+            Xem chi tiết
+          </Button>
+        </Link>
+        <Button
+        type="default"
+        size="small"
+        onClick={() => handleMessage(record)}
+      >
+        Nhắn tin
+      </Button>
       </Space>
     ),
   },

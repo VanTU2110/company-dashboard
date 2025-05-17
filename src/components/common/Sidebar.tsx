@@ -6,6 +6,7 @@ import {
   Building,
   LogOut,
   MessageCircleIcon,
+  FileWarningIcon
 } from 'lucide-react';
 
 const Sidebar = () => {
@@ -40,12 +41,16 @@ const Sidebar = () => {
           <Link to="/applications" className={linkClass('/applications')}>
             <Users size={20} /> <span>Đơn ứng tuyển</span>
           </Link>
-          <Link to="/company-profile" className={linkClass('/company-profile')}>
-            <Building size={20} /> <span>Công ty</span>
-          </Link>
           <Link to="/conversations" className={linkClass('/conversations')}>
             <MessageCircleIcon size={20} /> <span>Tin nhắn</span>
           </Link>
+          <Link to="/warning" className={linkClass('/warning')}>
+            <FileWarningIcon size={20} /> <span>Cảnh báo</span>
+          </Link>
+          <Link to="/company-profile" className={linkClass('/company-profile')}>
+            <Building size={20} /> <span>Công ty</span>
+          </Link>
+          
         </nav>
       </div>
 
