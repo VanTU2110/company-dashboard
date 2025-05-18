@@ -1,16 +1,27 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Layout, Typography, Spin, Empty, Button, Avatar, Alert, Space } from 'antd';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { 
+  Layout, 
+  Typography, 
+  Spin, 
+  Empty, 
+  Button, 
+  Avatar, 
+  Alert, 
+  Space,
+  Card,
+  Tag
+} from 'antd';
 import { 
   ArrowLeftOutlined, 
   UserOutlined, 
   InfoCircleOutlined, 
   ReloadOutlined,
   DisconnectOutlined,
-  CheckCircleOutlined
+  CheckCircleOutlined,
+  DollarOutlined
 } from '@ant-design/icons';
 
-// Import services, contexts and components
 import { getMessages, sendMessage } from '../../services/chatService';
 import { Message } from '../../types/message';
 import { useChat } from '../../contexts/ChatContext';
@@ -28,9 +39,8 @@ const Chat: React.FC = () => {
   const [sending, setSending] = useState(false);
   const [conversationTitle, setConversationTitle] = useState("Chat");
   const messageEndRef = useRef<null | HTMLDivElement>(null);
-  const fetchedRef = useRef<Set<string>>(new Set()); // Track fetched conversations
+  const fetchedRef = useRef<Set<string>>(new Set());
   
-  // Get companyUuid from CompanyContext to use as senderUuid
   const { companyData } = useCompany();
   
   const { 
@@ -41,33 +51,24 @@ const Chat: React.FC = () => {
     isConnected,
     connectionError,
     reconnect,
-    connection // Sử dụng connection từ context
+    connection
   } = useChat();
   
-  // Memoize current messages to prevent unnecessary re-renders
   const currentMessages = conversationUuid ? 
     messages.get(conversationUuid) || [] : [];
 
-  // Memoize the fetch messages function
   const fetchMessages = useCallback(async (convId: string) => {
-    // Check if we already fetched this conversation's messages
     if (fetchedRef.current.has(convId)) {
-      console.log(`Messages for conversation ${convId} already fetched, skipping`);
       return;
     }
     
     try {
       setLoading(true);
-      console.log(`Fetching messages for conversation ${convId}`);
       const response = await getMessages(convId);
       
       if (response.data) {
         setConversationMessages(convId, response.data);
-        
-        // Set conversation title - in a real app, fetch this from your API
         setConversationTitle(`Conversation #${convId.substring(0, 8)}`);
-        
-        // Mark this conversation as fetched
         fetchedRef.current.add(convId);
       } else if (response.error) {
         console.error(`Error: ${response.error.message}`);
@@ -79,32 +80,25 @@ const Chat: React.FC = () => {
     }
   }, [setConversationMessages]);
 
-  // Handle active conversation changes - only runs when conversation UUID changes
   useEffect(() => {
     if (!conversationUuid) return;
     
-    console.log(`Setting active conversation to ${conversationUuid}`);
     setActiveConversation(conversationUuid);
     
-    // Only fetch if we haven't fetched this conversation before
     if (!fetchedRef.current.has(conversationUuid)) {
       fetchMessages(conversationUuid);
     } else {
-      // If already fetched, just ensure loading is false
       setLoading(false);
     }
     
     return () => {
-      // Clean up when component unmounts or conversation changes
-      console.log('Cleaning up, setting active conversation to null');
       setActiveConversation(null);
     };
   }, [conversationUuid, fetchMessages, setActiveConversation]);
 
-  // Scroll to bottom when messages change
   useEffect(() => {
     messageEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [currentMessages.length]); // Only depend on message count, not the whole array
+  }, [currentMessages.length]);
 
   const handleSendMessage = async (content: string) => {
     if (!content || !conversationUuid || !companyData?.uuid) return;
@@ -112,34 +106,24 @@ const Chat: React.FC = () => {
     try {
       setSending(true);
       
-      // Tạo object tin nhắn tạm thời để hiển thị ngay trên UI
       const tempMessage: Message = {
         uuid: `temp-${Date.now()}`,
         conversationUuid,
         content,
         senderUuid: companyData.uuid,
         sendAt: new Date().toISOString(),
-        
       };
       
-      // Thêm tin nhắn tạm thời vào danh sách tin nhắn để hiển thị ngay
       addMessage(conversationUuid, tempMessage);
       
-      // Bước 1: Gửi tin nhắn qua SignalR hub trước để hiển thị tức thời
       if (connection && isConnected) {
         try {
-          console.log(`📤 Gửi tin nhắn qua SignalR hub: ${content}`);
           await connection.invoke("SendMessageToConversation", conversationUuid, companyData.uuid, content);
-          console.log(`✅ Gửi tin nhắn qua SignalR thành công`);
         } catch (signalRError) {
-          console.error(`❌ Không thể gửi tin nhắn qua SignalR: ${signalRError instanceof Error ? signalRError.message : "Lỗi không xác định"}`);
-          // Nếu SignalR thất bại, vẫn tiếp tục lưu vào DB
+          console.error(`SignalR error: ${signalRError}`);
         }
-      } else {
-        console.warn("Kết nối SignalR không khả dụng, chỉ gửi qua API");
       }
       
-      // Bước 2: Gửi tin nhắn qua API để lưu vào cơ sở dữ liệu
       const messageParams = {
         conversationUuid,
         content,
@@ -149,7 +133,6 @@ const Chat: React.FC = () => {
       const response = await sendMessage(messageParams);
       
       if (response.data) {
-        // Xóa tin nhắn tạm và thêm tin nhắn thật từ API response
         setConversationMessages(
           conversationUuid, 
           currentMessages
@@ -157,15 +140,92 @@ const Chat: React.FC = () => {
             .concat([response.data])
         );
       } else if (response.error) {
-        console.error(`Lỗi: ${response.error.message}`);
+        console.error(`Error: ${response.error.message}`);
       }
     } catch (err) {
-      console.error('Lỗi khi gửi tin nhắn:', err);
+      console.error('Error sending message:', err);
     } finally {
       setSending(false);
     }
   };
 
+  const renderMessageContent = (content: string) => {
+  // Check if content contains JOB_INVITE tags
+  if (content.includes('[JOB_INVITE') && content.includes('[/JOB_INVITE]')) {
+    // Extract parts before the job invite tag
+    const beforeTag = content.split('[JOB_INVITE')[0].trim();
+    
+    // Extract the job invite tag content
+    const tagContent = content.substring(
+      content.indexOf('[JOB_INVITE') + '[JOB_INVITE'.length,
+      content.indexOf('[/JOB_INVITE]')
+    ).trim();
+    
+    // Extract parts after the job invite tag
+    const afterTag = content.split('[/JOB_INVITE]')[1]?.trim() || '';
+    
+    // Parse job details from tag content
+    const details: Record<string, string> = {};
+    const keyValuePairs = tagContent.match(/(\w+)=("[^"]*"|[^\s]*)/g) || [];
+    
+    keyValuePairs.forEach(pair => {
+      const [key, value] = pair.split('=');
+      if (key && value) {
+        details[key] = value.replace(/"/g, '');
+      }
+    });
+    
+    return (
+      <div>
+        {beforeTag && <Text>{beforeTag}</Text>}
+        
+        <Card
+          style={{
+            margin: '12px 0',
+            borderLeft: '4px solid #1890ff',
+            backgroundColor: '#f0f8ff'
+          }}
+          bodyStyle={{ padding: 16 }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <Title level={5} style={{ margin: '0 0 8px 0' }}>
+                {details.title || 'Vị trí công việc'}
+              </Title>
+              
+              <Space size={[8, 16]} wrap>
+                {details.salary && (
+                  <Tag icon={<DollarOutlined />} color="blue">
+                    {details.salary}
+                  </Tag>
+                )}
+              </Space>
+            </div>
+            
+            {details.uuid && (
+              <Link to={`/jobs/${details.uuid}`}>
+                <Button type="primary">Xem chi tiết</Button>
+              </Link>
+            )}
+          </div>
+        </Card>
+
+        {afterTag && <Text>{afterTag}</Text>}
+      </div>
+    );
+  }
+  
+  // Regular text message
+  return (
+    <div style={{
+      whiteSpace: 'pre-wrap',
+      wordBreak: 'break-word',
+      lineHeight: 1.5
+    }}>
+      {content}
+    </div>
+  );
+}
   const isCurrentUser = useCallback((senderUuid: string) => 
     senderUuid === companyData?.uuid, [companyData?.uuid]);
 
@@ -311,7 +371,8 @@ const Chat: React.FC = () => {
                 <MessageItem 
                   key={msg.uuid} 
                   message={msg} 
-                  isCurrentUser={isCurrentUser(msg.senderUuid)} 
+                  isCurrentUser={isCurrentUser(msg.senderUuid)}
+                  renderContent={renderMessageContent}
                 />
               ))}
             </>

@@ -24,6 +24,7 @@ import {
   Table,  // Thêm Table để hiển thị sinh viên gợi ý
   Avatar,  // Thêm Avatar để hiển thị ảnh sinh viên
   Tooltip  // Thêm Tooltip để hiển thị thông tin bổ sung
+  
 } from 'antd';
 import { 
   ArrowLeftOutlined, 
@@ -38,7 +39,9 @@ import {
   UserOutlined,  // Icon cho sinh viên
   MailOutlined,  // Icon cho email
   PhoneOutlined,  // Icon cho số điện thoại
-  TeamOutlined    // Icon cho danh sách sinh viên được gợi ý
+  TeamOutlined,    // Icon cho danh sách sinh viên được gợi ý
+  ShareAltOutlined 
+
 } from '@ant-design/icons';
 import { JobItem, UpdateJob, } from '../../types/job';
 import { SuggestStudentParams, ListStudentResponse,StudentDetail } from '../../types/student';
@@ -47,6 +50,8 @@ import { getStudentSuggest } from '../../services/studentService';
 import { deleteSchedule } from '../../services/scheduleService';
 import { deleteJobSKill } from '../../services/skillService';
 import { createConversation } from '../../services/conversationService';
+import { useChat } from '../../contexts/ChatContext';
+import { sendMessage } from '../../services/chatService';
 
 const { Title, Text, Paragraph } = Typography;
 const { Header, Content } = Layout;
@@ -67,6 +72,8 @@ const JobDetailPage = () => {
   const [selectedScheduleUuid, setSelectedScheduleUuid] = useState<string | null>(null);
   const [selectedSkillUuid, setSelectedSkillUuid] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  // Thêm vào đầu component
+const { connection } = useChat();
   
   // Thêm state cho phần gợi ý sinh viên
   const [suggestedStudents, setSuggestedStudents] = useState<any[]>([]);
@@ -303,7 +310,58 @@ const handleMessage = async (student: StudentDetail) => {
     message.error('Không thể tạo cuộc trò chuyện.');
   }
 };
+const handleShareJob = async (student: StudentDetail) => {
+  if (!job || !student) return;
 
+  try {
+    // Tạo nội dung tin nhắn với thông tin công việc
+    const jobInfo = `[JOB_INVITE uuid=${job.uuid} title="${job.title}" salary="${renderSalaryInfo()}"][/JOB_INVITE]`;
+    const messageContent = `Xin chào, chúng tôi có công việc phù hợp với bạn:\n${jobInfo}`;
+
+    // Tạo hoặc lấy conversation với sinh viên
+    const conversationResponse = await createConversation({
+      studentUuid: student.uuid,
+      companyUuid: job.company?.uuid || '',
+    });
+
+    // Lưu tin nhắn vào database qua API
+    const sendMessageResponse = await sendMessage({
+      conversationUuid: conversationResponse.data.uuid,
+      senderUuid: job.company?.uuid || '',
+      content: messageContent,
+    });
+
+    // Gửi tin nhắn qua WebSocket để real-time
+    if (connection) {
+      await connection.invoke(
+        "SendMessageToConversation", 
+        conversationResponse.data.uuid, 
+        job.company?.uuid || '', 
+        messageContent
+      );
+    }
+
+    // // Cập nhật state nếu cần
+    // addMessage({
+    //   uuid: sendMessageResponse.data.uuid,
+    //   content: messageContent,
+    //   createdAt: new Date().toISOString(),
+    //   sender: {
+    //     uuid: job.company?.uuid || '',
+    //     name: job.company?.name || 'Công ty',
+    //     type: 'COMPANY'
+    //   }
+    // });
+
+    // Chuyển hướng đến cuộc trò chuyện
+    navigate(`/conversations/${conversationResponse.data.uuid}`);
+    
+    message.success('Đã chia sẻ công việc thành công');
+  } catch (err) {
+    console.error('Error sharing job:', err);
+    message.error('Có lỗi xảy ra khi chia sẻ công việc');
+  }
+};
 
   // Format lịch làm việc
   const formatDayOfWeek = (day: string): string => {
@@ -431,12 +489,20 @@ const studentColumns = [
           </Button>
         </Link>
         <Button
-        type="default"
-        size="small"
-        onClick={() => handleMessage(record)}
-      >
-        Nhắn tin
-      </Button>
+          type="default"
+          size="small"
+          onClick={() => handleMessage(record)}
+        >
+          Nhắn tin
+        </Button>
+        <Button
+          type="dashed"
+          size="small"
+          onClick={() => handleShareJob(record)}
+          icon={<ShareAltOutlined />}
+        >
+          Chia sẻ việc
+        </Button>
       </Space>
     ),
   },
