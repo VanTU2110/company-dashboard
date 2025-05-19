@@ -57,29 +57,21 @@ const ConversationsPage: React.FC = () => {
 
   // Filter conversations based on search text
   const filteredConversations = conversations.filter(conversation => 
-    conversation.studentUuid.toLowerCase().includes(searchText.toLowerCase()) ||
+    conversation.student.name.toLowerCase().includes(searchText.toLowerCase()) ||
     conversation.uuid.toLowerCase().includes(searchText.toLowerCase())
   );
 
   const columns = [
     {
-      title: 'Conversation ID',
-      dataIndex: 'uuid',
-      key: 'uuid',
-      render: (text: string) => (
-        <Tooltip title={text}>
-          <span>{text.substring(0, 8)}...</span>
-        </Tooltip>
-      ),
-    },
-    {
-      title: 'Student ID',
-      dataIndex: 'studentUuid',
-      key: 'studentUuid',
-      render: (text: string) => (
-        <Tooltip title={text}>
-          <span>{text.substring(0, 8)}...</span>
-        </Tooltip>
+      title: 'Sinh viên',
+      key: 'student',
+      render: (_: any, record: Conversation) => (
+        <div>
+          <div><strong>{record.student.name}</strong></div>
+          <div style={{ color: '#888', fontSize: '12px' }}>
+            ID: {record.student.uuid.substring(0, 8)}...
+          </div>
+        </div>
       ),
     },
     {

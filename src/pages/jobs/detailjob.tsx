@@ -171,7 +171,6 @@ const { connection } = useChat();
 
   const handleSave = async () => {
     try {
-      // Lấy tất cả giá trị hiện tại từ form
       const values = await form.validateFields();
       
       // Đảm bảo có companyUuid
@@ -186,29 +185,62 @@ const { connection } = useChat();
         description: values.description,
         jobType: values.jobType,
         salaryType: values.salaryType,
-        salaryMin: values.salaryMin,
-        salaryMax: values.salaryMax,
-        salaryFixed: values.salaryFixed,
         currency: values.currency,
         requirements: values.requirements,
         companyUuid: values.companyUuid
       };
-      
-      setIsSaving(true);
-      await updateJob(updatedData);
-      
-      if (uuid) {
-        const response = await detailJob(uuid);
-        if (response.error.code === 'success' && response.data) {
-          setJob(response.data);
-        }
+  
+      // Xử lý các trường lương theo salaryType
+      switch (values.salaryType) {
+        case 'fixed':
+          updatedData.salaryFixed = values.salaryFixed;
+          updatedData.salaryMin = 0;  // Đảm bảo reset các trường không dùng
+          updatedData.salaryMax = 0;
+          break;
+        
+        case 'monthly':
+        case 'daily':
+        case 'hourly':
+          updatedData.salaryMin = values.salaryMin;
+          updatedData.salaryMax = values.salaryMax;
+          updatedData.salaryFixed = 0;  // Đảm bảo reset các trường không dùng
+          break;
+        
+        default:
+          // Cho các trường hợp khác (nếu có)
+          updatedData.salaryMin = 0;
+          updatedData.salaryMax = 0;
+          updatedData.salaryFixed = 0;
       }
-      setIsEditing(false);
+  
+      setIsSaving(true);
+      const response = await updateJob(updatedData);
+      
+      if (response.error.code === 'success') {
+        // Refresh lại dữ liệu sau khi update thành công
+        if (uuid) {
+          const detailResponse = await detailJob(uuid);
+          if (detailResponse.error.code === 'success' && detailResponse.data) {
+            setJob(detailResponse.data);
+            // Cập nhật lại form values với dữ liệu mới
+            form.setFieldsValue({
+              ...detailResponse.data,
+              salaryMin: detailResponse.data.salaryMin,
+              salaryMax: detailResponse.data.salaryMax,
+              salaryFixed: detailResponse.data.salaryFixed
+            });
+          }
+        }
+        message.success('Cập nhật công việc thành công');
+        setIsEditing(false);
+      } else {
+        throw new Error(response.error.message || 'Cập nhật thất bại');
+      }
     } catch (err) {
       console.error('Error updating job:', err);
       Modal.error({
         title: 'Lỗi cập nhật',
-        content: 'Có lỗi xảy ra khi cập nhật thông tin công việc',
+        content: (err instanceof Error ? err.message : 'Có lỗi xảy ra khi cập nhật thông tin công việc'),
       });
     } finally {
       setIsSaving(false);
@@ -282,15 +314,35 @@ const handleDeleteSkill = async () => {
   }
 };
 
-// Hàm hiển thị loại lương
 const renderSalaryInfo = () => {
   if (!job) return null;
 
-  if (job.salaryType === 'RANGE') {
-    return `${job.salaryMin?.toLocaleString()} - ${job.salaryMax?.toLocaleString()} ${job.currency}`;
-  } else if (job.salaryType === 'FIXED') {
-    return `${job.salaryFixed?.toLocaleString()} ${job.currency}`;
-  } else {
+  // Map các loại lương sang tiếng Việt
+  const salaryTypeMap: Record<string, string> = {
+    'fixed': 'Cố định',
+    'monthly': 'Tháng',
+    'daily': 'Ngày',
+    'hourly': 'Giờ'
+  };
+
+  // Map các loại công việc sang tiếng Việt
+  const jobTypeMap: Record<string, string> = {
+    'remote': 'Làm từ xa',
+    'parttime': 'Bán thời gian',
+    'internship': 'Thực tập'
+  };
+
+  const salaryTypeText = salaryTypeMap[job.salaryType] || job.salaryType;
+  const jobTypeText = jobTypeMap[job.jobType] || job.jobType;
+
+  // Xử lý hiển thị theo từng loại lương
+  if (job.salaryType === 'fixed' && job.salaryFixed) {
+    return `${job.salaryFixed.toLocaleString('vi-VN')} ${job.currency} (${salaryTypeText})`;
+  } 
+  else if ((job.salaryType === 'monthly' || job.salaryType === 'daily' || job.salaryType === 'hourly') && job.salaryMin && job.salaryMax) {
+    return `${job.salaryMin.toLocaleString('vi-VN')} - ${job.salaryMax.toLocaleString('vi-VN')} ${job.currency}/${salaryTypeText}`;
+  } 
+  else {
     return 'Thương lượng';
   }
 };
@@ -636,104 +688,106 @@ return (
                     </Form.Item>
                     
                     <Form.Item
-                      name="salaryType"
-                      label="Loại lương"
-                      rules={[{ required: true, message: 'Vui lòng chọn loại lương' }]}
-                    >
-                      <Select 
-                        placeholder="Chọn loại lương"
-                        onChange={(value) => {
-                          // Xóa dữ liệu lương không liên quan khi thay đổi loại lương
-                          if (value === 'RANGE') {
-                            form.setFieldsValue({ salaryFixed: undefined });
-                          } else if (value === 'FIXED') {
-                            form.setFieldsValue({ salaryMin: undefined, salaryMax: undefined });
-                          } else {
-                            form.setFieldsValue({ 
-                              salaryMin: undefined, 
-                              salaryMax: undefined,
-                              salaryFixed: undefined
-                            });
-                          }
-                        }}
-                      >
-                        <Option value="RANGE">Khoảng lương</Option>
-                        <Option value="FIXED">Lương cố định</Option>
-                        <Option value="NEGOTIABLE">Thương lượng</Option>
-                      </Select>
-                    </Form.Item>
-                    
-                    {form.getFieldValue('salaryType') === 'RANGE' && (
-                      <Row gutter={16}>
-                        <Col span={12}>
-                          <Form.Item
-                            name="salaryMin"
-                            label="Lương tối thiểu"
-                            rules={[{ required: true, message: 'Vui lòng nhập lương tối thiểu' }]}
-                          >
-                            <InputNumber 
-                              style={{ width: '100%' }} 
-                              placeholder="Lương tối thiểu"
-                              formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                              parser={value => value!.replace(/\$\s?|(,*)/g, '')}
-                            />
-                          </Form.Item>
-                        </Col>
-                        <Col span={12}>
-                          <Form.Item
-                            name="salaryMax"
-                            label="Lương tối đa"
-                            rules={[
-                              { required: true, message: 'Vui lòng nhập lương tối đa' },
-                              ({ getFieldValue }) => ({
-                                validator(_, value) {
-                                  if (!value || getFieldValue('salaryMin') <= value) {
-                                    return Promise.resolve();
-                                  }
-                                  return Promise.reject(new Error('Lương tối đa phải lớn hơn lương tối thiểu'));
-                                },
-                              }),
-                            ]}
-                          >
-                            <InputNumber 
-                              style={{ width: '100%' }} 
-                              placeholder="Lương tối đa"
-                              formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                              parser={value => value!.replace(/\$\s?|(,*)/g, '')}
-                            />
-                          </Form.Item>
-                        </Col>
-                      </Row>
-                    )}
-                    
-                    {form.getFieldValue('salaryType') === 'FIXED' && (
-                      <Form.Item
-                        name="salaryFixed"
-                        label="Lương cố định"
-                        rules={[{ required: true, message: 'Vui lòng nhập lương cố định' }]}
-                      >
-                        <InputNumber 
-                          style={{ width: '100%' }} 
-                          placeholder="Lương cố định"
-                          formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                          parser={value => value!.replace(/\$\s?|(,*)/g, '')}
-                        />
-                      </Form.Item>
-                    )}
-                    
-                    {(form.getFieldValue('salaryType') === 'RANGE' || form.getFieldValue('salaryType') === 'FIXED') && (
-                      <Form.Item
-                        name="currency"
-                        label="Đơn vị tiền tệ"
-                        rules={[{ required: true, message: 'Vui lòng chọn đơn vị tiền tệ' }]}
-                      >
-                        <Select placeholder="Chọn đơn vị tiền tệ">
-                          <Option value="VND">VND</Option>
-                          <Option value="USD">USD</Option>
-                          <Option value="EUR">EUR</Option>
-                        </Select>
-                      </Form.Item>
-                    )}
+    name="salaryType"
+    label="Loại lương"
+    rules={[{ required: true, message: 'Vui lòng chọn loại lương' }]}
+  >
+    <Select 
+      placeholder="Chọn loại lương"
+      onChange={(value) => {
+        // Reset các trường lương khi thay đổi loại lương
+        form.setFieldsValue({
+          salaryMin: undefined,
+          salaryMax: undefined,
+          salaryFixed: undefined
+        });
+      }}
+    >
+      <Option value="monthly">Theo tháng</Option>
+      <Option value="daily">Theo ngày</Option>
+      <Option value="hourly">Theo giờ</Option>
+      <Option value="fixed">Cố định</Option>
+    </Select>
+  </Form.Item>
+
+  {/* Hiển thị các trường lương tương ứng */}
+  {form.getFieldValue('salaryType') === 'fixed' && (
+    <Form.Item
+      name="salaryFixed"
+      label="Mức lương cố định"
+      rules={[
+        { required: true, message: 'Vui lòng nhập mức lương' },
+        { type: 'number', min: 0, message: 'Lương phải là số dương' }
+      ]}
+    >
+      <InputNumber
+        style={{ width: '100%' }}
+        formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+        parser={value => value!.replace(/\$\s?|(,*)/g, '')}
+      />
+    </Form.Item>
+  )}
+
+  {(form.getFieldValue('salaryType') === 'monthly' || 
+    form.getFieldValue('salaryType') === 'daily' || 
+    form.getFieldValue('salaryType') === 'hourly') && (
+    <>
+      <Row gutter={16}>
+        <Col span={12}>
+          <Form.Item
+            name="salaryMin"
+            label="Lương tối thiểu"
+            rules={[
+              { required: true, message: 'Vui lòng nhập lương tối thiểu' },
+              { type: 'number', min: 0, message: 'Lương phải là số dương' }
+            ]}
+          >
+            <InputNumber
+              style={{ width: '100%' }}
+              formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+              parser={value => value!.replace(/\$\s?|(,*)/g, '')}
+            />
+          </Form.Item>
+        </Col>
+        <Col span={12}>
+          <Form.Item
+            name="salaryMax"
+            label="Lương tối đa"
+            rules={[
+              { required: true, message: 'Vui lòng nhập lương tối đa' },
+              { type: 'number', min: 0, message: 'Lương phải là số dương' },
+              ({ getFieldValue }) => ({
+                validator(_, value) {
+                  if (!value || getFieldValue('salaryMin') <= value) {
+                    return Promise.resolve();
+                  }
+                  return Promise.reject('Lương tối đa phải lớn hơn tối thiểu');
+                },
+              }),
+            ]}
+          >
+            <InputNumber
+              style={{ width: '100%' }}
+              formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+              parser={value => value!.replace(/\$\s?|(,*)/g, '')}
+            />
+          </Form.Item>
+        </Col>
+      </Row>
+    </>
+  )}
+
+  <Form.Item
+    name="currency"
+    label="Đơn vị tiền tệ"
+    rules={[{ required: true, message: 'Vui lòng chọn đơn vị tiền tệ' }]}
+  >
+    <Select placeholder="Chọn đơn vị tiền tệ">
+      <Option value="VND">VND</Option>
+      <Option value="USD">USD</Option>
+    </Select>
+  </Form.Item>
+                    )
                     
                     <Form.Item
                       name="description"
