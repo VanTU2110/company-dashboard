@@ -6,8 +6,7 @@ import { data } from "react-router-dom";
 
 export const getPageListSkill = async (params: GetPageSkillParams):Promise<SkillListResponse> => {
   try {
-    const response = await api.post<SkillListResponse>(`/Skill/get-list-page-skill`, {
-    });
+    const response = await api.post<SkillListResponse>(`/Skill/get-list-page-skill`, params);
     return response.data;
   } catch (error) {
     console.error("Error fetching skills:", error);

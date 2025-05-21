@@ -28,3 +28,7 @@ export const verifyUser = async(params:verifyUserParams):Promise<UserResponse> =
       throw error;
   }
 }
+export const logout = async () => {
+  const res = await api.post('/auth/logout');
+  return res.data;
+};

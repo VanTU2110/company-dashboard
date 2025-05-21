@@ -8,7 +8,7 @@ import {
   MessageCircleIcon,
   FileWarningIcon
 } from 'lucide-react';
-
+import { logout } from '../../services/authService';
 const Sidebar = () => {
   const { pathname } = useLocation();
   const navigate = useNavigate();
@@ -20,11 +20,18 @@ const Sidebar = () => {
         : 'hover:bg-gray-100 text-gray-700'
     }`;
 
-  const handleLogout = () => {
-    localStorage.removeItem('useruuid');
-    navigate('/login', { replace: true });
-  };
-
+    const handleLogout = async () => {
+      try {
+        await logout(); // Gọi API để backend xử lý đăng xuất
+      } catch (error) {
+        console.error('Lỗi khi gọi logout service:', error);
+        // Có thể toast.warning('Không thể kết nối máy chủ') nếu muốn
+      } finally {
+        localStorage.removeItem('token'); // Xóa token phía frontend
+        navigate('/login'); // Điều hướng về trang đăng nhập
+      }
+    };
+    
   return (
     <aside className="w-64 h-screen bg-[#f9fafb] border-r flex flex-col justify-between shadow-sm">
       <div>
@@ -57,7 +64,7 @@ const Sidebar = () => {
       <div className="p-4 border-t border-gray-200">
         <button
           onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-4 py-2 rounded-lg text-red-600 hover:bg-red-100 font-medium transition-all duration-200"
+          className="w-full bg-sky-50 flex items-center gap-3 px-4 py-2 rounded-lg text-red-600 hover:bg-red-100 font-medium transition-all duration-200"
           type="button"
         >
           <LogOut size={20} />
