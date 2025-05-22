@@ -95,47 +95,58 @@ export default function AddJobSkillPage() {
   };
 
   // Xử lý khi thêm kỹ năng
-  const handleAddSkill = async () => {
-    if (!selectedSkill) {
-      setError("Vui lòng chọn một kỹ năng để thêm");
-      return;
-    }
+const handleAddSkill = async () => {
+  if (!selectedSkill) {
+    setError("Vui lòng chọn một kỹ năng để thêm");
+    return;
+  }
 
-    if (!jobUuid) {
-      setError("Không tìm thấy thông tin công việc");
-      return;
-    }
+  if (!jobUuid) {
+    setError("Không tìm thấy thông tin công việc");
+    return;
+  }
 
-    try {
-      setIsLoading(true);
-      setError(null);
+  try {
+    setIsLoading(true);
+    setError(null);
+    setSuccessMessage(""); // Reset thông báo thành công trước khi gửi request
+    
+    const data = {
+      jobUuid: jobUuid,
+      skillUuid: selectedSkill
+    };
+    
+    await createJobSkill(data);
+    setSuccessMessage("Thêm kỹ năng thành công");
+    setSelectedSkill(""); // Reset lựa chọn
+    
+    // Tự động chuyển hướng sau 2 giây
+    setTimeout(() => {
+      navigate(`/jobs/${jobUuid}`);
+    }, 2000);
+    
+  } catch (err:any) {
+    // Reset thông báo thành công nếu có lỗi
+    setSuccessMessage("");
+    
+    // Kiểm tra cấu trúc lỗi và hiển thị thông báo phù hợp
+    if (err.response && err.response.data && err.response.data.error) {
+      const errorData = err.response.data.error;
       
-      const data = {
-        jobUuid: jobUuid,
-        skillUuid: selectedSkill
-      };
-      
-      await createJobSkill(data);
-      setSuccessMessage("Thêm kỹ năng thành công");
-      setSelectedSkill(""); // Reset lựa chọn
-      
-      // Tự động chuyển hướng sau 2 giây
-      setTimeout(() => {
-        navigate(`/jobs/${jobUuid}`);
-      }, 2000);
-      
-    } catch (err: any) {
-      if (err.response && err.response.data && err.response.data.error) {
-        setError(err.response.data.error.message || "Có lỗi xảy ra khi thêm kỹ năng");
+      // Xử lý các mã lỗi cụ thể
+      if (errorData.code === "jobskilL_EXISTS") {
+        setError("Skill này đã tồn tại trong công việc");
       } else {
-        setError("Không thể thêm kỹ năng. Vui lòng thử lại sau.");
+        setError(errorData.message || "Có lỗi xảy ra khi thêm kỹ năng");
       }
-      console.error("Error adding job skill:", err);
-    } finally {
-      setIsLoading(false);
+    } else {
+      setError("Không thể thêm kỹ năng. Vui lòng thử lại sau.");
     }
-  };
-
+    console.error("Error adding job skill:", err);
+  } finally {
+    setIsLoading(false);
+  }
+};
   // Xử lý quay lại trang danh sách kỹ năng của công việc
   const handleCancel = () => {
     if (jobUuid) {

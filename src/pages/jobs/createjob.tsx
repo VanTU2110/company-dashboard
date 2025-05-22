@@ -163,7 +163,6 @@ const CreateJobPage = () => {
                 >
                   <Select placeholder="Chọn loại công việc">
                     <Option value="remote">Remote</Option>
-                    <Option value="fulltime">Toàn thời gian</Option>
                     <Option value="parttime">Bán thời gian</Option>
                     <Option value="internship">Thực tập</Option>
                   </Select>
