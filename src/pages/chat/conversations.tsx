@@ -102,7 +102,7 @@ const ConversationsPage: React.FC = () => {
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
         <Row justify="space-between" align="middle">
           <Col>
-            <Title level={3}>Conversations</Title>
+            <Title level={3}>Danh sách cuộc trò chuyện</Title>
           </Col>
           <Col>
             <Space>

@@ -121,7 +121,7 @@ const ListWarning: React.FC = () => {
           <div className="flex items-center">
             <ExclamationCircleOutlined className="mr-2 text-xl text-yellow-500" />
             <Title level={4} className="m-0">
-              Warning List
+              Danh sách cảnh báo
             </Title>
           </div>
         }

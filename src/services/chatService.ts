@@ -1,5 +1,5 @@
 import api from './api';
-import { SendMessageParams, MessageResponse,SendMessageResponse } from '../types/message';
+import { SendMessageParams, MessageResponse,SendMessageResponse,SendMassMessageParams,SendMassMessageResponse } from '../types/message';
 
 export const sendMessage = async (params: SendMessageParams): Promise<SendMessageResponse> => {
     try {
@@ -16,6 +16,15 @@ export const getMessages = async (conversationUuid: string): Promise<MessageResp
         return response.data;
     } catch (error) {
         console.error('Error fetching messages:', error);
+        throw error;
+    }
+}
+export const sendMassMessage = async (params: SendMassMessageParams): Promise<SendMassMessageResponse> => {
+    try {
+        const response = await api.post('Chat/send-mass', params);
+        return response.data;
+    } catch (error) {
+        console.error('Error sending mass message:', error);
         throw error;
     }
 }

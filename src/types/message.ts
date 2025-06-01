@@ -24,3 +24,15 @@ export interface MessageResponse {
         message: string;
     };
 }
+export interface SendMassMessageParams {
+  companyUuid: string;
+  studentUuid: string[]; // Danh sách UUID của sinh viên
+  content: string;
+}
+export interface SendMassMessageResponse {
+  data: Message[];
+  error: {
+    code: string;
+    message: string;
+  };
+}
